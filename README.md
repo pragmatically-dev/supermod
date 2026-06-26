@@ -6,8 +6,7 @@
 
 **Cross-document linking · a full perpetual Planner app · native-ink notes everywhere · bookmarks · a knowledge graph — all rendered by xochitl itself, all backed by a real SQLite database.**
 
-<!-- TODO(screenshots): replace with the hero shot — the Planner month view over a notebook -->
-<img src="docs/screenshots/hero.png" alt="SuperMod hero" width="720"/>
+<img src="docs/screenshots/planner-month-view.png" alt="SuperMod — the Planner month view, rendered natively by xochitl on a reMarkable 2" width="420"/>
 
 > ⚠️ **Supported devices: reMarkable 1 & reMarkable 2 only** (for now). reMarkable Paper Pro is not supported yet.
 
@@ -30,12 +29,19 @@ State flows **down** as commands (`Q_INVOKABLE`) and **up** as change signals; t
 
 ## ✨ Features
 
-> 📸 The screenshots below are placeholders — the full gallery is captured in `docs/screenshots/` (see [the manifest](docs/screenshots/README.md)).
+> 📸 Every screenshot below is a real capture from a reMarkable 2 running SuperMod.
 
 ### 🗓️ Planner — a full perpetual calendar & planner app
 The headline feature. A dedicated, full-screen planner launched from the My-Files sidebar **and** from the Quick-Settings panel (next to Airplane mode).
 
-<img src="docs/screenshots/planner-month.png" alt="Planner month view" width="640"/>
+<table align="center">
+<tr>
+<td align="center"><img src="docs/screenshots/planner-month-view.png" width="210"/><br/><sub><b>Month</b></sub></td>
+<td align="center"><img src="docs/screenshots/week-view.png" width="210"/><br/><sub><b>Week</b></sub></td>
+<td align="center"><img src="docs/screenshots/day-view.png" width="210"/><br/><sub><b>Day</b></sub></td>
+<td align="center"><img src="docs/screenshots/planner-yearview.png" width="210"/><br/><sub><b>Year</b></sub></td>
+</tr>
+</table>
 
 - **Year / Month / Week / Day** views, pixel-faithful to a high-contrast paper planner, fully **perpetual** (real dates in SQLite, any year).
 - **Events & tasks** — tap a time slot to add an event; checklists for Focus / Priorities / To-do, with reorder.
@@ -45,28 +51,80 @@ The headline feature. A dedicated, full-screen planner launched from the My-File
 - **Data dashboard** — counts for every table and a guarded bulk reset.
 - Internationalized (labels via `qsTr`, month/day names follow the device language).
 
+<table align="center">
+<tr>
+<td align="center"><img src="docs/screenshots/day-view-event-pen-input-example-writting-2.png" width="200"/><br/><sub>Native ink on the day strip</sub></td>
+<td align="center"><img src="docs/screenshots/day-view-event-text.png" width="200"/><br/><sub>Typed event entry</sub></td>
+<td align="center"><img src="docs/screenshots/planner-mood-tracker.png" width="200"/><br/><sub>Mood / pixel tracker</sub></td>
+<td align="center"><img src="docs/screenshots/planner-yearly-review.png" width="200"/><br/><sub>Yearly review</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/planner-quicksettings-shortcut.png" width="200"/><br/><sub>Quick-Settings launcher</sub></td>
+<td align="center"><img src="docs/screenshots/supermod-dashboard-planner-access.png" width="200"/><br/><sub>My-Files sidebar entry</sub></td>
+<td align="center"><img src="docs/screenshots/planner-month-view-day-preview.png" width="200"/><br/><sub>Long-press day preview</sub></td>
+<td align="center"><img src="docs/screenshots/global-chip-notes.png" width="200"/><br/><sub>Draggable pen chips</sub></td>
+</tr>
+</table>
+
 ### 🔗 Chiplinks — cross-document links & backlinks
-<img src="docs/screenshots/links.png" alt="Cross-document links" width="640"/>
 
 Create hyperlinks between any two documents/pages. Every link is bidirectional — each target shows its **backlinks** through a SQL `VIEW`, so you can navigate your notes like a wiki.
 
+<table align="center">
+<tr>
+<td align="center"><img src="docs/screenshots/recents-links-preview-tap-to-go-on.png" width="280"/><br/><sub>Links panel with live page previews</sub></td>
+<td align="center"><img src="docs/screenshots/chiplinks-toolbar-closed.png" width="280"/><br/><sub>The Chiplinks toolbar on a page</sub></td>
+</tr>
+</table>
+
 ### 🕸️ Graph view
-<img src="docs/screenshots/graph.png" alt="Knowledge graph" width="640"/>
 
 A force-directed graph of your documents and the links between them — see the shape of your knowledge base at a glance.
 
+<table align="center">
+<tr>
+<td align="center"><img src="docs/screenshots/dashboard-graph.png" width="280"/><br/><sub>Force-directed graph of all documents</sub></td>
+<td align="center"><img src="docs/screenshots/local-graph-view-toc.png" width="280"/><br/><sub>Local graph + backlinks for one note</sub></td>
+</tr>
+</table>
+
 ### 📑 Table of Contents
-<img src="docs/screenshots/toc.png" alt="Table of contents" width="640"/>
 
 A live, navigable TOC for notebooks — native headings plus your own custom entries, with a section breadcrumb on the page.
+
+<table align="center">
+<tr>
+<td align="center"><img src="docs/screenshots/custom-toc.png" width="280"/><br/><sub>Custom + native headings</sub></td>
+<td align="center"><img src="docs/screenshots/toc-foldout.png" width="280"/><br/><sub>TOC foldout on the page</sub></td>
+</tr>
+</table>
 
 ### 📌 Pins & 🔖 Bookmarks
 Pin pages for quick return and bookmark entries over the document's `tocItems` — pure, fast transforms over an already-loaded snapshot.
 
+<p align="center"><img src="docs/screenshots/bookmarks-preview.png" alt="Bookmarks" width="280"/></p>
+
 ### 🖊️ Post-it scratch notes & 📷 Capture
-<img src="docs/screenshots/postit.png" alt="Post-it scratch notes" width="640"/>
 
 Drop a native-ink **post-it** anywhere — a tiny pointer to a hidden scratch page where xochitl persists your handwriting. **Capture** an area of the screen as an image and paste it straight into a note.
+
+<table align="center">
+<tr>
+<td align="center"><img src="docs/screenshots/postit-popup.png" width="280"/><br/><sub>Native-ink post-it scratch note</sub></td>
+<td align="center"><img src="docs/screenshots/crop-from-page.png" width="280"/><br/><sub>Capture a region from the page</sub></td>
+</tr>
+</table>
+
+### 📊 Data dashboard
+A built-in dashboard over the whole SQLite store — overview counts, a browsable per-table view, and global settings (with a guarded bulk reset).
+
+<table align="center">
+<tr>
+<td align="center"><img src="docs/screenshots/dashboard-overview.png" width="220"/><br/><sub>Overview counts</sub></td>
+<td align="center"><img src="docs/screenshots/dashboard-browse.png" width="220"/><br/><sub>Browse records</sub></td>
+<td align="center"><img src="docs/screenshots/dashboard-global-settings.png" width="220"/><br/><sub>Global settings</sub></td>
+</tr>
+</table>
 
 ### 🧰 Toolbar & UI tweaks
 Quality-of-life additions to the document toolbar and surrounding UI, all native-looking.
