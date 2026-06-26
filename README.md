@@ -196,6 +196,7 @@ SuperMod stands on the shoulders of the reMarkable hacking community:
 - **[Asivery](https://github.com/asivery)** — `xovi`, `qmldiff`, and `qt-resource-rebuilder`, the runtime that makes all of this possible.
 - **[rmitchellscott](https://github.com/rmitchellscott/rm-qmd-hasher)** — `rm-qmd-hasher`, used to hash the published `.qmd` so they never reveal reMarkable's internal QML structure.
 - The emulator/RE lineage — **timower**, **Eeems**, **Jayy001**, and others.
+- **[PepikVaio](https://github.com/PepikVaio)** — for hunting down bugs and suggesting features from the very start. Huge help shaping SuperMod.
 
 This project is an independent, unofficial modification. **reMarkable** is a trademark of reMarkable AS; this project is not affiliated with or endorsed by them.
 
