@@ -1,0 +1,99 @@
+AFFECT [[6554413872610298131]]
+    TRAVERSE [[8397788359424131273]]#[[15225781669996973588]]
+        TRAVERSE [[425121728314878811.4184163301694413582]]
+            REPLACE [[214642559243]] WITH {
+                ~&214642559243&~: (~&15793094956877902211&~.tocFilterMode === "graphview"
+                    ? ~&6504222003&~("Graph View")
+                    : ~&15793094956877902211&~.tocFilterMode === "backlinks"
+                        ? ~&6504222003&~("Backlinks")
+                        : ~&15793094956877902211&~.tocFilterMode === "pins"
+                            ? ~&6504222003&~("Pins")
+                            : ~&6504222003&~(~&"6623200991876284756&~)
+                              + (~&15793094956877902211&~.tocFilterMode === "native" ? " - " + ~&6504222003&~("Built-in")
+                                : ~&15793094956877902211&~.tocFilterMode === ~&"6504366312&~  ? " - " + ~&6504222003&~("User") : ""))
+                    + (!~&15225781669996973588&~.tocEditMode && ~&15225781669996973588&~.editingPageId === "" ? "  " : "")
+            }
+
+            TRAVERSE [[425121728314878811.4184163301694413582.7081261925573]][.[[8399601734642709923]]=[["3792857133055099087]]]
+                REPLACE [[6504315758]] WITH {
+                    ~&6504315758&~: ~&15225781669996973588&~.editingPageId !== "" ? ~&6504222003&~(~&"7081277108079&~) : ~&6504222003&~(~&"6502513850&~)
+                }
+                REPLACE [[254542236275632405]] WITH {
+                    ~&254542236275632405&~: {
+                        ~&5972376&~ (~&15225781669996973588&~.editingPageId !== "") {
+                            ~&15225781669996973588&~.tocCancelEditing();
+                        } ~&6503784146&~ {
+                            ~&15225781669996973588&~.~&7713518849160367&~();
+                        }
+                    }
+                }
+            END TRAVERSE
+
+            LOCATE AFTER ALL
+            INSERT {
+                ~&425121728314878811&~.~&4184163301694413582&~.~&7081261925573&~ {
+                    ~&5972374&~: _tocAcceptButton
+                    ~&6504315758&~: ~&15225781669996973588&~.editingPageId !== ""
+                        ? ~&6504222003&~(~&"6503125400&~)
+                        : (~&15225781669996973588&~.tocEditMode ? ~&6504222003&~(~&"6502601327&~) : ~&6504222003&~(~&"6502625135&~))
+                    ~&233748328658231&~: ~&15793094956877902211&~.tocFilterMode !== "graphview"
+                        && ~&15793094956877902211&~.tocFilterMode !== "backlinks"
+                        && (~&15225781669996973588&~.hasUserEntries
+                            || ~&15225781669996973588&~.editingPageId !== ""
+                            || ~&15225781669996973588&~.tocEditMode)
+                    ~&254542236275632405&~: {
+                        ~&5972376&~ (~&15225781669996973588&~.editingPageId !== "") {
+                            ~&15225781669996973588&~.tocSaveEditingEntry();
+                        } ~&6503784146&~ {
+                            ~&15225781669996973588&~.tocEditMode = !~&15225781669996973588&~.tocEditMode;
+                        }
+                    }
+                }
+
+                ~&425121728314878811&~.~&4184163301694413582&~.~&7081261925573&~ {
+                    ~&5972374&~: _tocNumberingButton
+                    ~&6504315758&~: ""
+                    ~&8399601734642709923&~: ~&"2054282329494521587&~
+                    ~&233748328658231&~: ~&15225781669996973588&~.tocEditMode && ~&15225781669996973588&~.editingPageId === ""
+                    ~&254542236275632405&~: ~&15225781669996973588&~._numberFoldoutOpen = !~&15225781669996973588&~._numberFoldoutOpen
+                }
+
+                /* Theme D (P1-8): persistent return-to-source affordance so a cross-doc/*/
+                /* backlink jump isn't a dead-end. A discreet back-arrow icon. Visible*/
+                /* only after a jump (the one-slot return target now lives in the LinkFlow*/
+                /* FSM, surfaced as documentView.linkFlowCanReturn); tocReturnToSource()*/
+                /* forwards the linkFlowReturn event, which navigates back and clears it.*/
+                ~&425121728314878811&~.~&4184163301694413582&~.~&7081261925573&~ {
+                    ~&5972374&~: _tocReturnButton
+                    ~&6504315758&~: ""
+                    ~&8399601734642709923&~: ~&"5203726458251154181&~
+                    ~&233748328658231&~: ~&15793094956877902211&~.linkFlowCanReturn
+                    ~&254542236275632405&~: ~&15793094956877902211&~.tocReturnToSource()
+                }
+            }
+        END TRAVERSE
+
+        LOCATE AFTER ALL
+        INSERT {
+            /* Tap the centered title to cycle the filter mode (replaces the old*/
+            /* chevron_down button → cleaner UI). 50%-wide hit area centered over*/
+            /* the title so it never overlaps the edge buttons (Back / Edit /*/
+            /* numbering). Disabled while editing, matching the old button's gate.*/
+            ~&254494525842443467&~ {
+                ~&5972374&~: _tocTitleCycleArea
+                ~&7082729686082&~: ~&2216395559061277486&~.~&7082729686082&~
+                ~&214646099849&~: ~&2216395559061277486&~.~&214646099849&~ * 0.5
+                ~&233721384511543&~.~&12826966400293002612&~: ~&2216395559061277486&~.~&12826966400293002612&~
+                ~&233721384511543&~.~&197100796&~: ~&2216395559061277486&~.~&197100796&~
+                /* Cyclable in edit mode too; only blocked during an active rename.*/
+                /* (After deleting an entry the user can cycle with zero extra taps.)*/
+                ~&233726547792244&~: ~&15225781669996973588&~.editingPageId === ""
+                ~&254542236275632405&~: {
+                    ~&214622607920&~ modes = ["native", ~&"6504366312&~, "graphview", "backlinks", "pins"];
+                    ~&214622607920&~ ~&197088462&~ = modes.~&233731717342038&~(~&15793094956877902211&~.tocFilterMode);
+                    ~&15793094956877902211&~.tocSetFilterMode(modes[(~&197088462&~ + 1) % modes.~&7082886407723&~]);
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

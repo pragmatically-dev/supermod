@@ -1,0 +1,535 @@
+AFFECT [[1224665461898798997]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            /* === Reactivity: backend signals → reload + rebuild model ===*/
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ChiplinksBackend
+                /* addCrossDocTocItem emits BOTH tocItemsChanged AND linksChanged, so*/
+                /* both handlers fired loadTocItems (2× synchronous SQL on the shared*/
+                /* mutex) per cross-doc add. Coalesce into one reload per tick.*/
+                function onTocItemsChanged(~&214623780460&~) {
+                    ~&5972376&~ (~&6504254477&~.~&7712934851008712&~ && ~&214623780460&~ === ~&6504254477&~.~&7712934851008712&~.~&5972374&~) ~&6504254477&~._tocReloadItemsCoalesced();
+                }
+                function onLinksChanged(sourceDocId) {
+                    ~&5972376&~ (~&6504254477&~.~&7712934851008712&~ && sourceDocId === ~&6504254477&~.~&7712934851008712&~.~&5972374&~) ~&6504254477&~._tocReloadItemsCoalesced();
+                }
+                function onPinsChanged(linkId) {
+                    ~&6504254477&~.tocScheduleBuildModel();
+                }
+            }
+
+            function _tocReloadItemsCoalesced() {
+                ~&5972376&~ (_tocItemsReloadQueued) ~&7083121450889&~;
+                _tocItemsReloadQueued = ~&6504329801&~;
+                ~&5971598&~.~&254524858248187773&~(function() {
+                    ~&6504254477&~._tocItemsReloadQueued = ~&214625660372&~;
+                    ~&5972376&~ (!~&6504254477&~.~&7712934851008712&~) ~&7083121450889&~;
+                    ~&6504254477&~.tocItems = ChiplinksBackend.loadTocItems(~&6504254477&~.~&7712934851008712&~.~&5972374&~);
+                    ~&6504254477&~.tocScheduleBuildModel();
+                });
+            }
+
+            /* === Page UUID ↔ index cache (kept from legacy) ===*/
+            function tocRebuildPageCache() {
+                ~&214622607920&~ idToIndex = ({});
+                ~&214622607920&~ indexToId = ({});
+                ~&5972376&~ (~&7712934851008712&~) {
+                    ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < ~&7712934851008712&~.~&254543134818768527&~; ~&180978&~++) {
+                        ~&214622607920&~ pid = ~&7712934851008712&~.~&254533375641282938&~(~&180978&~);
+                        ~&5972376&~ (pid !== ~&254550717068498203&~ && pid !== ~&6504117156&~ && pid !== "") {
+                            idToIndex[String(pid)] = ~&180978&~;
+                            indexToId[~&180978&~] = pid;
+                        }
+                    }
+                    _tocCacheDocId = ~&7712934851008712&~.~&5972374&~;
+                    _tocCachePageCount = ~&7712934851008712&~.~&254543134818768527&~;
+                } ~&6503784146&~ {
+                    _tocCacheDocId = "";
+                    _tocCachePageCount = -1;
+                }
+                _tocPageIdToIndex = idToIndex;
+                _tocIndexToPageId = indexToId;
+            }
+
+            function tocEnsurePageCache() {
+                ~&5972376&~ (!~&7712934851008712&~) ~&7083121450889&~;
+                /* O(1): rebuild solo si cambió el doc o su cantidad de páginas.*/
+                ~&5972376&~ (_tocCacheDocId !== ~&7712934851008712&~.~&5972374&~ || _tocCachePageCount !== ~&7712934851008712&~.~&254543134818768527&~) {
+                    tocRebuildPageCache();
+                }
+            }
+
+            function tocPageForId(~&7083037950451&~) {
+                ~&5972376&~ (!~&7712934851008712&~) ~&7083121450889&~ -1;
+                ~&5972376&~ (~&7083037950451&~ === ~&254550717068498203&~ || ~&7083037950451&~ === ~&6504117156&~) ~&7083121450889&~ -1;
+                ~&5972376&~ (!~&214629831714&~(~&7081731278802&~(~&7083037950451&~))) ~&7083121450889&~ ~&7081731278802&~(~&7083037950451&~);
+                tocEnsurePageCache();
+                ~&214622607920&~ ~&197090674&~ = String(~&7083037950451&~);
+                ~&5972376&~ (_tocPageIdToIndex.~&962658491532182526&~(~&197090674&~)) ~&7083121450889&~ _tocPageIdToIndex[~&197090674&~];
+                ~&214622607920&~ fallback = ~&7712934851008712&~.~&254543134822321786&~(~&7083037950451&~);
+                ~&5972376&~ (fallback >= 0) {
+                    _tocPageIdToIndex[~&197090674&~] = fallback;
+                    _tocIndexToPageId[fallback] = ~&7083037950451&~;
+                }
+                ~&7083121450889&~ fallback;
+            }
+
+            function tocIdForPage(~&254543134825829310&~) {
+                ~&5972376&~ (!~&7712934851008712&~ || ~&254543134825829310&~ < 0 || ~&254543134825829310&~ >= ~&7712934851008712&~.~&254543134818768527&~) ~&7083121450889&~ ~&6504117156&~;
+                tocEnsurePageCache();
+                ~&5972376&~ (_tocIndexToPageId.~&962658491532182526&~(~&254543134825829310&~)) ~&7083121450889&~ _tocIndexToPageId[~&254543134825829310&~];
+                ~&214622607920&~ fallback = ~&7712934851008712&~.~&254533375641282938&~(~&254543134825829310&~);
+                ~&5972376&~ (fallback !== ~&254550717068498203&~ && fallback !== ~&6504117156&~) {
+                    _tocIndexToPageId[~&254543134825829310&~] = fallback;
+                    _tocPageIdToIndex[String(fallback)] = ~&254543134825829310&~;
+                }
+                ~&7083121450889&~ fallback;
+            }
+
+            /* === Schedule debounced model rebuild ===*/
+            function tocScheduleBuildModel() {
+                ~&5972376&~ (_tocBuildPending) ~&7083121450889&~;
+                _tocBuildPending = ~&6504329801&~;
+                _tocBuildDebounceTimer.~&233743006639214&~();
+            }
+
+            /* === Load from backend (called when opening a doc) ===*/
+            function tocLoadEntries() {
+                ~&5972376&~ (!~&7712934851008712&~) {
+                    tocItems = [];
+                    tocLoading = ~&214625660372&~;
+                    _tocLoadedThisTick = ~&214625660372&~;   /* next real open must reload*/
+                    tocBuildModel();
+                    ~&7083121450889&~;
+                }
+                /* Single-burst dedup: the first eager caller in this turn loads;*/
+                /* the 2-3 callers that fire synchronously in the SAME open (crossdoc*/
+                /* onDocumentChanged + _open_helper + pages.onVisibleChanged) become*/
+                /* no-ops. Cleared on the next event-loop turn so a genuine reopen*/
+                /* (different OR same doc) reloads. Replaces the broken*/
+                /* `_tocLoadingDocId === document.id && tocLoading` guard, which never*/
+                /* tripped (tocLoading resets synchronously before the next call).*/
+                ~&5972376&~ (_tocLoadedThisTick) ~&7083121450889&~;
+                _tocLoadedThisTick = ~&6504329801&~;
+                ~&5971598&~.~&254524858248187773&~(function() { ~&6504254477&~._tocLoadedThisTick = ~&214625660372&~; });
+                ~&214622607920&~ _perfT0 = ~&6502586279&~.now();
+                tocLoading = ~&6504329801&~;
+                _tocLoadingDocId = ~&7712934851008712&~.~&5972374&~;
+                /* O(1) page cache: tocEnsurePageCache rebuilds only when doc.id /*/
+                /* pageCount changed. tocRebuildPageCache() (unconditional, O(pageCount)*/
+                /* native idForPage loop) was the biggest synchronous main-thread cost*/
+                /* and ran twice per nav — the prime freeze driver.*/
+                tocEnsurePageCache();
+
+                /* Register the doc in our cache so future links can resolve target names.*/
+                ChiplinksBackend.upsertDoc(
+                    ~&7712934851008712&~.~&5972374&~,
+                    ~&7712934851008712&~.~&505890565057603928&~ || "",
+                    ~&7712934851008712&~.~&7713428759880064&~ || ""
+                );
+
+                tocItems = ChiplinksBackend.loadTocItems(~&7712934851008712&~.~&5972374&~);
+                tocNumberStyle = ChiplinksBackend.getMeta(~&7712934851008712&~.~&5972374&~ + ":numberStyle", "");
+                tocFilterMode = ChiplinksBackend.getMeta(~&7712934851008712&~.~&5972374&~ + ":filterMode", "native");
+                /* Etapa 2: el modo combinado "all" fue eliminado (native/custom son*/
+                /* modelos separados). Un doc con "all" persistido (o el viejo*/
+                /* "bookmarks", cuya grilla ya vive aparte) abre en "native".*/
+                ~&5972376&~ (tocFilterMode === "all" || tocFilterMode === "bookmarks") tocFilterMode = "native";
+                tocLoading = ~&214625660372&~;
+                ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[chiplinks-perf] tocLoadEntries ms=" + (~&6502586279&~.now() - _perfT0) +
+                            " tocItems=" + (tocItems ? tocItems.~&7082886407723&~ : 0));
+                ChiplinksBackend.memStats();
+                tocBuildModel();
+            }
+
+            /* === Helpers: id generation ===*/
+            /* order_idx slotting moved to the backend: upsertTocItem auto-appends*/
+            /* MAX(order_idx)+1000 when order_idx is omitted (bloc-architecture:R-01/R-05).*/
+            function _genShortId() {
+                ~&7083121450889&~ ~&6502909715&~.random().~&7713616118928163&~(36).~&254548200562243306&~(2, 10);
+            }
+
+            /* === Settings (persist per-doc via meta table) ===*/
+            function tocSetNumberStyle(~&214641774074&~) {
+                tocNumberStyle = ~&214641774074&~ || "";
+                ~&5972376&~ (~&7712934851008712&~) ChiplinksBackend.setMeta(~&7712934851008712&~.~&5972374&~ + ":numberStyle", tocNumberStyle);
+                tocScheduleBuildModel();
+            }
+
+            function tocSetFilterMode(~&6504074414&~) {
+                tocFilterMode = ~&6504074414&~ || "native";
+                ~&5972376&~ (~&7712934851008712&~) ChiplinksBackend.setMeta(~&7712934851008712&~.~&5972374&~ + ":filterMode", tocFilterMode);
+            }
+
+            /* === Mutations ===*/
+            function tocAddEntry(~&7083037950451&~, ~&6504095402&~) {
+                ~&5972376&~ (!~&7712934851008712&~) ~&7083121450889&~;
+                ~&197091758&~ pageKey, ~&6504167078&~;
+                ~&5972376&~ (~&7712934851008712&~.~&7713012671454059&~ === ~&7711571060833448&~.~&214586564057&~) {
+                    ~&6504167078&~ = ~&15793094956877902211&~.~&477346483278306569&~;
+                    ~&5972376&~ (~&7712934851008712&~.~&8399622833342862200&~(~&6504167078&~)) {
+                        pageKey = ~&7083037950451&~;
+                    } ~&6503784146&~ {
+                        ~&214622607920&~ ratio = ~&7082020628281&~.tocEbookPageToRatio(~&7712934851008712&~, ~&6504167078&~);
+                        pageKey = "p:" + ratio.~&233745927191932&~(6);
+                    }
+                } ~&6503784146&~ {
+                    pageKey = ~&7083037950451&~;
+                    ~&6504167078&~ = ~&15793094956877902211&~.~&477346483278306569&~;
+                }
+                ~&5972376&~ (~&6504167078&~ < 0) ~&7083121450889&~;
+
+                /* Inherit level from previous entry on same or earlier page.*/
+                ~&197091758&~ inheritedLevel = 0;
+                ~&197085552&~ (~&214622607920&~ ~&214624950331&~ ~&5972574&~ ~&6504254477&~.~&7713616698729984&~) {
+                    ~&5972376&~ (~&214624950331&~.~&6504167078&~ !== ~&254550717068498203&~ && ~&214624950331&~.~&6504167078&~ <= ~&6504167078&~) {
+                        inheritedLevel = ~&214624950331&~.~&214632930081&~ ?? 0;
+                    } ~&6503784146&~ ~&5972376&~ (~&214624950331&~.~&6504167078&~ !== ~&254550717068498203&~ && ~&214624950331&~.~&6504167078&~ > ~&6504167078&~) {
+                        ~&214621519406&~;
+                    }
+                }
+
+                ChiplinksBackend.upsertTocItem({
+                    ~&5972374&~: "toc:" + _genShortId(),
+                    doc_id: ~&7712934851008712&~.~&5972374&~,
+                    ~&6504095402&~: ~&6504095402&~ || "",
+                    ~&214632930081&~: inheritedLevel,
+                    page_key: pageKey
+                });
+            }
+
+            function tocDeleteEntry(~&5972374&~) {
+                ~&5972376&~ (!~&5972374&~) ~&7083121450889&~;
+                /* deleteTocItem cascadea al link espejo para ids "xref:" en UNA*/
+                /* transacción (oculta pins + lo saca de backlinks); QML ya no emite*/
+                /* un deleteLink aparte.*/
+                ChiplinksBackend.deleteTocItem(~&5972374&~);
+            }
+
+            function tocShowRenameDialog(~&7083037950451&~) {
+                ~&197091758&~ ~&197090674&~, ~&6504167078&~;
+                ~&5972376&~ (~&7712934851008712&~.~&7713012671454059&~ === ~&7711571060833448&~.~&214586564057&~) {
+                    ~&6504167078&~ = ~&15793094956877902211&~.~&477346483278306569&~;
+                    ~&5972376&~ (~&7712934851008712&~.~&8399622833342862200&~(~&6504167078&~)) {
+                        ~&197090674&~ = ~&7083037950451&~;
+                    } ~&6503784146&~ {
+                        ~&214622607920&~ ratio = ~&7082020628281&~.tocEbookPageToRatio(~&7712934851008712&~, ~&6504167078&~);
+                        ~&197090674&~ = "p:" + ratio.~&233745927191932&~(6);
+                    }
+                } ~&6503784146&~ {
+                    ~&197090674&~ = ~&7083037950451&~;
+                    ~&6504167078&~ = tocPageForId(~&7083037950451&~);
+                }
+                ~&214622607920&~ existing = tocItems.~&6503816650&~(~&180974&~ => ~&180974&~.~&5972374&~ === ~&197090674&~ || ~&180974&~.page_key === ~&197090674&~);
+                ~&214622607920&~ ~&6504095402&~ = existing ? existing.~&6504095402&~ : "";
+                try {
+                    _tocRenamePopup.~&6504147419&~(~&197090674&~, ~&6504095402&~, ~&6504167078&~);
+                } catch (~&180974&~) {
+                    ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] toc mod not loaded, cannot show rename dialog");
+                }
+            }
+
+            /* Open the rename popup for a SPECIFIC entry/link id (no page→key*/
+            /* remapping — unlike tocShowRenameDialog, which rewrites the key from the*/
+            /* current page and would mangle an xref id). Used by the pin edit toolbar's*/
+            /* rename button. Pre-fills the current name; accept routes through*/
+            /* tocRenameEntry → renameLink for xrefs.*/
+            function tocShowRenameDialogForId(~&5972374&~) {
+                ~&5972376&~ (!~&5972374&~) ~&7083121450889&~;
+                ~&214622607920&~ existing = tocItems.~&6503816650&~(~&180974&~ => ~&180974&~.~&5972374&~ === ~&5972374&~);
+                ~&214622607920&~ ~&6504095402&~ = existing ? (existing.~&6504095402&~ || existing.target_doc_name || "") : "";
+                try {
+                    _tocRenamePopup.~&6504147419&~(~&5972374&~, ~&6504095402&~, 0);
+                } catch (~&180974&~) {
+                    ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] toc mod not loaded, cannot show rename dialog");
+                }
+            }
+
+            function tocRenameEntry(~&5972374&~, ~&6504095402&~) {
+                ~&5972376&~ (!~&5972374&~) ~&7083121450889&~;
+                ~&214622607920&~ existing = tocItems.~&6503816650&~(~&180974&~ => ~&180974&~.~&5972374&~ === ~&5972374&~);
+                /* Cross-doc xrefs (the "chiplinks") carry BOTH a toc_item and a mirror*/
+                /* link sharing this id; route them to the backend's transactional*/
+                /* renameLink so the link name (shown on the pin pill) AND the toc_item*/
+                /* name (shown in the TOC) stay consistent. Plain entries keep upsert.*/
+                ~&5972376&~ (~&5972374&~.~&8400089168236034054&~("xref:") || (existing && existing.target_doc_id)) {
+                    ChiplinksBackend.renameLink(~&5972374&~, ~&6504095402&~);
+                    ~&7083121450889&~;
+                }
+                ~&5972376&~ (!existing) ~&7083121450889&~;
+                ChiplinksBackend.upsertTocItem(~&7081747777088&~.~&7082472702734&~({}, existing, { ~&6504095402&~: ~&6504095402&~ }));
+            }
+
+            function tocSetEntryLevel(~&5972374&~, ~&214632930081&~) {
+                /* El UPDATE de level (clamp 0..6) lo hace el backend; QML ya no lee*/
+                /* la fila ni reescribe el toc_item entero.*/
+                ChiplinksBackend.setTocItemLevel(~&5972374&~, ~&214632930081&~);
+            }
+
+            /* tocAddCrossDocEntry was deleted (LINKS_REDESIGN step 7): cross-doc link birth*/
+            /* is now the backend createLink command (mints the id in C++, stores source_page*/
+            /* + target_page_label + metadata, bumps recents) — both the selection flow and*/
+            /* the recents quick-add route through it. The QML hand-built id/metadata path is gone.*/
+
+            function tocRevalidateEntries() {
+                ~&5972376&~ (!~&7712934851008712&~) ~&7083121450889&~;
+                /* audit #2: this runs deferred (Qt.callLater) off the native*/
+                /* onPageMapChanged hot handler. Gate on the in-flight backlinks worker*/
+                /* so we never issue sync DELETEs that block the GUI thread on the*/
+                /* FULLMUTEX connection mutex while that worker holds it; the batched*/
+                /* deleteTocItems is one transaction (one mutex window) instead of N.*/
+                ~&5972376&~ (_backlinksLoading) ~&7083121450889&~;
+                try {
+                    ~&214622607920&~ toDelete = [];
+                    ~&197085552&~ (~&214622607920&~ ~&6503936152&~ ~&5972574&~ tocItems) {
+                        ~&5972376&~ (~&6503936152&~.~&5972374&~ && ~&6503936152&~.~&5972374&~.~&8400089168236034054&~("xref:")) ~&7712892661735406&~;
+                        ~&5972376&~ (!~&6503936152&~.page_key) ~&7712892661735406&~;
+                        ~&214622607920&~ ~&6504167078&~ = ~&7082020628281&~.tocResolvePageFromKey(~&7712934851008712&~, ~&6503936152&~.page_key, tocPageForId);
+                        ~&5972376&~ (~&6504167078&~ < 0 || ~&6504167078&~ >= ~&7712934851008712&~.~&254543134818768527&~) toDelete.~&6504189257&~(~&6503936152&~.~&5972374&~);
+                    }
+                    ~&5972376&~ (toDelete.~&7082886407723&~ > 0) ChiplinksBackend.deleteTocItems(toDelete);
+                } catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] tocRevalidateEntries: " + ~&180974&~); }
+            }
+
+            function tocDeleteEntryWithUndo(~&5972374&~) {
+                ~&214622607920&~ existing = tocItems.~&6503816650&~(~&180974&~ => ~&180974&~.~&5972374&~ === ~&5972374&~);
+                ~&5972376&~ (!existing) ~&7083121450889&~;
+                /* El name se lee SÓLO para el texto del toast (no para reconstruir*/
+                /* estado). El borrado es soft, así que el undo no necesita snapshot.*/
+                ~&214622607920&~ friendly = existing.~&6504095402&~ || existing.target_doc_name || ~&6504222003&~(~&"214624950331&~);
+                tocDeleteEntry(~&5972374&~);
+                toastShow(~&6504222003&~("Deleted “%1”").~&197080195&~(friendly), () => {
+                    /* Undo = revivir (deleted_at = NULL) en el backend; para xrefs*/
+                    /* revive también el link espejo y sus pins en una transacción.*/
+                    /* Sin clon JSON del row (R-02).*/
+                    ChiplinksBackend.restoreTocItem(~&5972374&~);
+                    ~&15793094956877902211&~.toastShow(~&6504222003&~("Restored"));
+                });
+            }
+
+            /* === Move (one slot — order_idx slotting lives in the backend) ===*/
+            function tocCanMoveUp(~&197088462&~) {
+                ~&5972376&~ (~&197088462&~ <= 0) ~&7083121450889&~ ~&214625660372&~;
+                /* Etapa 2: el reorder vive en la vista "user" (custom). tocModel es*/
+                /* native-only ahora, así que el gate debe leer tocCustomModel — el*/
+                /* delegate index es índice DENTRO de filteredModel=tocCustomModel.*/
+                ~&214622607920&~ ~&214634455770&~ = ~&6504254477&~.tocCustomModel;
+                ~&5972376&~ (!~&214634455770&~ || ~&197088462&~ >= ~&214634455770&~.~&7082886407723&~) ~&7083121450889&~ ~&214625660372&~;
+                ~&214622607920&~ ~&214624950331&~ = ~&214634455770&~[~&197088462&~];
+                ~&5972376&~ (!~&214624950331&~.~&7083037950451&~) ~&7083121450889&~ ~&214625660372&~;
+                ~&5972376&~ (!~&214624950331&~.~&7083037950451&~.~&8400089168236034054&~("toc:") && !~&214624950331&~.~&7083037950451&~.~&8400089168236034054&~("xref:")) ~&7083121450889&~ ~&214625660372&~;
+                ~&7083121450889&~ ~&6504329801&~;
+            }
+
+            function tocCanMoveDown(~&197088462&~) {
+                ~&214622607920&~ ~&214634455770&~ = ~&6504254477&~.tocCustomModel;
+                ~&5972376&~ (!~&214634455770&~ || ~&197088462&~ < 0 || ~&197088462&~ >= ~&214634455770&~.~&7082886407723&~ - 1) ~&7083121450889&~ ~&214625660372&~;
+                ~&214622607920&~ ~&214624950331&~ = ~&214634455770&~[~&197088462&~];
+                ~&5972376&~ (!~&214624950331&~.~&7083037950451&~) ~&7083121450889&~ ~&214625660372&~;
+                ~&5972376&~ (!~&214624950331&~.~&7083037950451&~.~&8400089168236034054&~("toc:") && !~&214624950331&~.~&7083037950451&~.~&8400089168236034054&~("xref:")) ~&7083121450889&~ ~&214625660372&~;
+                ~&7083121450889&~ ~&6504329801&~;
+            }
+
+            function tocMoveEntryUp(~&5972374&~) {
+                /* El slot order_idx lo computa el backend (swap con el vecino), no QML.*/
+                ChiplinksBackend.moveTocItemUp(~&5972374&~);
+            }
+
+            function tocMoveEntryDown(~&5972374&~) {
+                ChiplinksBackend.moveTocItemDown(~&5972374&~);
+            }
+
+            /* === Build model for UI ===*/
+            function tocBuildModel() {
+                tocScheduleBuildModel();
+            }
+
+            /* Cheap structural compare of two pin maps (key "linkId:page" -> pin).*/
+            /* If pins are identical, all three derived caches are identical, so*/
+            /* we can skip reassigning them and avoid a cascade of delegate*/
+            /* binding re-evals (R3). Comparing the map is enough — the count*/
+            /* map and globalPins both derive from the same pin rows.*/
+            function _pinMapEqual(~&180970&~, ~&180971&~) {
+                ~&5972376&~ (!~&180970&~ || !~&180971&~) ~&7083121450889&~ ~&214625660372&~;
+                ~&214622607920&~ ka = ~&7081747777088&~.~&6503992357&~(~&180970&~);
+                ~&214622607920&~ kb = ~&7081747777088&~.~&6503992357&~(~&180971&~);
+                ~&5972376&~ (ka.~&7082886407723&~ !== kb.~&7082886407723&~) ~&7083121450889&~ ~&214625660372&~;
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < ka.~&7082886407723&~; ~&180978&~++) {
+                    ~&214622607920&~ ~&180980&~ = ka[~&180978&~];
+                    ~&214622607920&~ pa = ~&180970&~[~&180980&~], pb = ~&180971&~[~&180980&~];
+                    ~&5972376&~ (!pb) ~&7083121450889&~ ~&214625660372&~;
+                    ~&5972376&~ (pa.~&180993&~ !== pb.~&180993&~ || pa.~&180994&~ !== pb.~&180994&~ ||
+                        pa.color_idx !== pb.color_idx ||
+                        pa.source_page !== pb.source_page ||
+                        pa.~&214641137009&~ !== pb.~&214641137009&~) ~&7083121450889&~ ~&214625660372&~;
+                }
+                ~&7083121450889&~ ~&6504329801&~;
+            }
+
+            function tocBuildModelNow() {
+                ~&5972376&~ (!~&7712934851008712&~) { ~&6504254477&~.~&7713616698729984&~ = []; ~&6504254477&~.tocCustomModel = []; ~&7083121450889&~; }
+                /* PERF (invariante Sesión #19): el build combinado pesado (1000+*/
+                /* entradas nativas + loadPins por xref) sólo importa con el TOC en*/
+                /* pantalla. Si está cerrado, salimos: pages.onVisibleChanged /*/
+                /* tocShowView reconstruyen al abrir. Gate ESTRUCTURAL → protege a*/
+                /* cualquier caller eager (incluido el load on-open de BUG #3) sin*/
+                /* parchear N sitios. NO seteamos _tocBuildPending acá: el timer de*/
+                /* debounce lo limpia ANTES de llamar a tocBuildModelNow, así que*/
+                /* setearlo dejaría a tocScheduleBuildModel en no-op permanente.*/
+                ~&5972376&~ (!~&214637513689&~.~&233748328658231&~) ~&7083121450889&~;
+                ~&5972376&~ (~&7712934851008712&~.~&7713012671454059&~ !== ~&7711571060833448&~.~&7711997891205770&~ && !_nativeTocLoaded && tocLoading) ~&7083121450889&~;
+
+                tocEnsurePageCache();
+                ~&214622607920&~ _perfT0 = ~&6502586279&~.now();
+                ~&197091758&~ _perfPinQ = 0;
+
+                /* Native TOC entries (PDF / Ebook) — always present, build first.*/
+                ~&214622607920&~ baseEntries = [];
+                ~&5972376&~ (~&7712934851008712&~.~&7713012671454059&~ !== ~&7711571060833448&~.~&7711997891205770&~ && ~&6504254477&~._nativeTocModel) {
+                    ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < ~&6504254477&~._nativeTocModel.~&7082886407723&~; ~&180978&~++) {
+                        ~&214622607920&~ ~&214624950331&~ = ~&6504254477&~._nativeTocModel[~&180978&~];
+                        baseEntries.~&6504189257&~({
+                            ~&6504167078&~: ~&214624950331&~.~&6504167078&~,
+                            ~&7083037950451&~: tocIdForPage(~&214624950331&~.~&6504167078&~) ?? ("native:" + ~&214624950331&~.~&6504167078&~),
+                            ~&6504095402&~: ~&214624950331&~.~&6504095402&~,
+                            ~&214632930081&~: ~&214624950331&~.~&214632930081&~ ?? 0,
+                            isUserEntry: ~&214625660372&~,
+                            isCrossDoc: ~&214625660372&~,
+                            _origIndex: ~&180978&~
+                        });
+                    }
+                }
+
+                /* === Etapa 2 (native/custom split) ===*/
+                /* tocModel = SOLO el TOC nativo (el índice propio del device). El merge*/
+                /* native+user+xref fue eliminado: el custom vive ahora en tocCustomModel,*/
+                /* construido desde el backend (ChiplinksBackend.loadTocCustom).*/
+                baseEntries.~&6504290513&~((~&180970&~, ~&180971&~) => (~&180970&~.~&6504167078&~ - ~&180971&~.~&6504167078&~) || ((~&180970&~._origIndex ?? 999999) - (~&180971&~._origIndex ?? 999999)));
+                ~&6504254477&~.~&7713616698729984&~ = baseEntries;
+
+                /* CUSTOM TOC → tocCustomModel. loadTocCustom devuelve las filas ya con*/
+                /* shape de delegate y crossDocStatus (available/deleted/page_deleted),*/
+                /* ordenadas por order_idx. QML sólo hace lo xochitl-coupled: resolver*/
+                /* page_key → índice de página, y refinar "archived" vía Library (el*/
+                /* backend no ve el flag archived). performance:R-01/R-02 — UNA pasada de*/
+                /* resolución por reload, nunca por delegate.*/
+                ~&214622607920&~ customRows = ChiplinksBackend.loadTocCustom(~&7712934851008712&~.~&5972374&~);
+                ~&214622607920&~ ~&7082553357604&~ = [];
+                ~&197085552&~ (~&197091758&~ ci = 0; ci < customRows.~&7082886407723&~; ci++) {
+                    ~&214622607920&~ ~&197098625&~ = customRows[ci];
+                    ~&5972376&~ (~&197098625&~.isCrossDoc) {
+                        /* Source page (donde se creó el link) para current-chapter/orden;*/
+                        /* -1 si legacy/empty. El delegate no muestra número para xrefs.*/
+                        ~&197091758&~ xrefPage = -1;
+                        ~&5972376&~ (~&197098625&~.page_key) {
+                            ~&214622607920&~ rp = ~&7082020628281&~.tocResolvePageFromKey(~&7712934851008712&~, ~&197098625&~.page_key, tocPageForId);
+                            ~&5972376&~ (rp >= 0 && rp < ~&7712934851008712&~.~&254543134818768527&~) xrefPage = rp;
+                        }
+                        ~&197091758&~ ~&7083177691309&~ = ~&197098625&~.crossDocStatus || ~&"254522926132630058&~;
+                        ~&5972376&~ (~&7083177691309&~ === ~&"254522926132630058&~ && ~&197098625&~.targetDocId) {
+                            try {
+                                ~&214622607920&~ te = ~&233694067165438&~.~&8399431778896295215&~(~&197098625&~.targetDocId);
+                                ~&5972376&~ (!te) ~&7083177691309&~ = "deleted";
+                                ~&6503784146&~ ~&5972376&~ (te.~&7712810854541167&~) ~&7083177691309&~ = ~&"7712810854541167&~;
+                            } catch (~&180974&~) { /* Library API unavailable in this scope */ }
+                        }
+                        ~&7082553357604&~.~&6504189257&~({
+                            ~&6504167078&~: xrefPage,
+                            ~&7083037950451&~: ~&197098625&~.~&7083037950451&~,
+                            ~&6504095402&~: ~&197098625&~.~&6504095402&~ || ~&197098625&~.targetDocName || ~&6504222003&~("Cross-document link"),
+                            ~&214632930081&~: ~&197098625&~.~&214632930081&~ ?? 0,
+                            isUserEntry: ~&6504329801&~,
+                            isCrossDoc: ~&6504329801&~,
+                            crossDocStatus: ~&7083177691309&~,
+                            targetDocId: ~&197098625&~.targetDocId || "",
+                            targetPageKey: ~&197098625&~.targetPageKey || "",
+                            targetDocName: ~&197098625&~.targetDocName || "",
+                            _orderIdx: ~&197098625&~.order_idx
+                        });
+                    } ~&6503784146&~ {
+                        ~&214622607920&~ ~&197090674&~ = ~&197098625&~.page_key || ~&197098625&~.~&7083037950451&~;
+                        ~&214622607920&~ ~&6504167078&~ = ~&7082020628281&~.tocResolvePageFromKey(~&7712934851008712&~, ~&197090674&~, tocPageForId);
+                        /* Drop user entries cuyo page ya no resuelve (igual que el viejo*/
+                        /* merge, que sólo push-eaba userBase con page válido in-range;*/
+                        /* tocRevalidateEntries además los borra server-side).*/
+                        ~&5972376&~ (~&6504167078&~ < 0 || ~&6504167078&~ >= ~&7712934851008712&~.~&254543134818768527&~) ~&7712892661735406&~;
+                        /* A bookmark is a toc_item whose id has NO "toc:"/"xref:"*/
+                        /* prefix (same definition dv_bookmarks uses). Flag it so the*/
+                        /* TOC delegate can mark it with a star, like links carry a*/
+                        /* link icon.*/
+                        ~&214622607920&~ _isBookmark = !!~&197098625&~.~&7083037950451&~
+                            && !~&197098625&~.~&7083037950451&~.~&8400089168236034054&~("toc:")
+                            && !~&197098625&~.~&7083037950451&~.~&8400089168236034054&~("xref:");
+                        ~&7082553357604&~.~&6504189257&~({
+                            ~&6504167078&~: ~&6504167078&~,
+                            ~&7083037950451&~: ~&197098625&~.~&7083037950451&~,
+                            ~&6504095402&~: ~&197098625&~.~&6504095402&~ || ("Page " + (~&6504167078&~ + 1)),
+                            ~&214632930081&~: ~&197098625&~.~&214632930081&~ ?? 0,
+                            isUserEntry: ~&6504329801&~,
+                            isCrossDoc: ~&214625660372&~,
+                            isBookmark: _isBookmark,
+                            _orderIdx: ~&197098625&~.order_idx
+                        });
+                    }
+                }
+                /* Orden por order_idx preservado (backend ORDER BY order_idx): la vista*/
+                /* "user" es el arreglo propio del usuario (y move-up/down es estable).*/
+                _tocModelRebuilding = ~&6504329801&~;
+                ~&6504254477&~.tocCustomModel = ~&7082553357604&~;
+                ~&5971598&~.~&254524858248187773&~(() => { _tocModelRebuilding = ~&214625660372&~; });
+
+                /* Single pass over xref items: build globalPins for the TOC*/
+                /* "pins" filter view, build pinCountByLinkId for the badge,*/
+                /* and build pinByLinkAndPage so isPinned / pinColorIdx in*/
+                /* toc_delegate are O(1) dict lookups instead of SQL queries.*/
+                ~&214622607920&~ globalPins        = [];
+                ~&214622607920&~ pinCountByLinkId  = ({});
+                ~&214622607920&~ pinByLinkAndPage  = ({});
+                /* ONE batched read of every pin on this doc's links (was N× loadPins,*/
+                /* one SQL round-trip per xref item). Group by link_id in a single pass.*/
+                ~&214622607920&~ _allPins   = ChiplinksBackend.loadPinsForDoc(~&7712934851008712&~.~&5972374&~);
+                _perfPinQ = 1;
+                ~&214622607920&~ _pinsByLink = ({});
+                ~&197085552&~ (~&197091758&~ pi = 0; pi < _allPins.~&7082886407723&~; pi++) {
+                    ~&214622607920&~ ~&180985&~ = _allPins[pi];
+                    (_pinsByLink[~&180985&~.link_id] || (_pinsByLink[~&180985&~.link_id] = [])).~&6504189257&~(~&180985&~);
+                    pinByLinkAndPage[~&180985&~.link_id + ~&"180931&~ + ~&180985&~.source_page] = ~&180985&~;
+                }
+                ~&197085552&~ (~&197091758&~ jj = 0; jj < tocItems.~&7082886407723&~; jj++) {
+                    ~&214622607920&~ ~&6503936152&~ = tocItems[jj];
+                    ~&5972376&~ (!~&6503936152&~.~&5972374&~ || (!~&6503936152&~.~&5972374&~.~&8400089168236034054&~("xref:") && !~&6503936152&~.target_doc_id)) ~&7712892661735406&~;
+                    ~&214622607920&~ pins = _pinsByLink[~&6503936152&~.~&5972374&~] || [];
+                    pinCountByLinkId[~&6503936152&~.~&5972374&~] = pins.~&7082886407723&~;
+                    ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < pins.~&7082886407723&~; ~&180978&~++) {
+                        ~&214622607920&~ ~&180985&~ = pins[~&180978&~];
+                        globalPins.~&6504189257&~({
+                            isUserEntry: ~&6504329801&~,
+                            isCrossDoc: ~&214625660372&~,
+                            isPinView: ~&6504329801&~,
+                            ~&6504167078&~: ~&180985&~.source_page,
+                            ~&7083037950451&~: ~&6503936152&~.~&5972374&~ + "_pin_" + ~&180978&~,
+                            ~&6504095402&~: "[Pin] " + (~&6503936152&~.~&6504095402&~ || ~&6503936152&~.target_doc_name || ~&6504222003&~("Link")),
+                            ~&214632930081&~: 0
+                        });
+                    }
+                }
+                globalPins.~&6504290513&~((~&180970&~, ~&180971&~) => ~&180970&~.~&6504167078&~ - ~&180971&~.~&6504167078&~);
+                /* R3: only reassign the pin caches when pins actually changed.*/
+                /* Every reassignment re-evals isPinned / pinColorIdx on every*/
+                /* delegate; on a debounced pinsChanged with identical data that*/
+                /* is pure waste on the Cortex-A7.*/
+                ~&5972376&~ (!_pinMapEqual(pinByLinkAndPage, ~&6504254477&~._pinByLinkAndPage)) {
+                    ~&6504254477&~._globalPinsModel    = globalPins;
+                    ~&6504254477&~._pinCountByLinkId   = pinCountByLinkId;
+                    ~&6504254477&~._pinByLinkAndPage   = pinByLinkAndPage;
+                }
+
+                ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[chiplinks-perf] tocBuild ms=" + (~&6502586279&~.now() - _perfT0) +
+                            " native=" + baseEntries.~&7082886407723&~ + " custom=" + ~&7082553357604&~.~&7082886407723&~ +
+                            " pinQueries=" + _perfPinQ);
+            }
+        }
+    END TRAVERSE
+END AFFECT

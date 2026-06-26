@@ -1,0 +1,276 @@
+AFFECT [[1224665461898798997]]
+    IMPORT [[6504469795.6504031891.233725061010028]] [[180922.180921]]
+    IMPORT [[6504469795.6504031891.8399831271885303833]] [[180922.180921]]
+    IMPORT [[6504469795.6504031891.7712892662059645]] [[180922.180921]]
+    IMPORT [[6504469795.6504031891.7082625047238]] [[180922.180921]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            readonly property ~&197102514&~ ~&15793094956877902211&~: ~&6504254477&~
+
+            /* === SuperMod global settings snapshot (schema v5) ===*/
+            /* Cached per-section snapshots of the user's tunables (pin/post-it*/
+            /* dimensions, long-press, default placement, …) read from the backend*/
+            /* and re-pulled on settingsChanged. Consumers read O(1) via _setting()*/
+            /* with the hardcoded literal as a final fallback — no backend call in a*/
+            /* binding/delegate (performance:R-01). Defaults live in C++*/
+            /* (SettingsRepo::schema); QML never owns them. We keep the two maps*/
+            /* SEPARATE and read keys directly (no JS for-in merge — a QVariantMap*/
+            /* from a Q_INVOKABLE doesn't reliably enumerate under V4).*/
+            property ~&197102514&~ _settingsChip:   ChiplinksBackend.loadSettings("chiplinks")
+            property ~&197102514&~ _settingsPostit: ChiplinksBackend.loadSettings("postit")
+            function _loadSupermodSettings() {
+                _settingsChip   = ChiplinksBackend.loadSettings("chiplinks");
+                _settingsPostit = ChiplinksBackend.loadSettings("postit");
+            }
+            function _setting(~&197090674&~, fallback) {
+                ~&197102514&~ ~&180991&~ = _settingsChip[~&197090674&~];
+                ~&5972376&~ (~&180991&~ !== ~&254550717068498203&~ && ~&180991&~ !== ~&6504117156&~) ~&7083121450889&~ ~&180991&~;
+                ~&180991&~ = _settingsPostit[~&197090674&~];
+                ~&5972376&~ (~&180991&~ !== ~&254550717068498203&~ && ~&180991&~ !== ~&6504117156&~) ~&7083121450889&~ ~&180991&~;
+                ~&7083121450889&~ fallback;
+            }
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ChiplinksBackend
+                function onSettingsChanged(~&233744279141054&~) {
+                    ~&15793094956877902211&~._loadSupermodSettings();
+                }
+            }
+
+            /* === TOC state (backend-backed) ===*/
+            property ~&197102514&~ tocItems: []
+            property ~&7083178290016&~ tocNumberStyle: ""
+            /* Etapa 2 (native/custom split): "all" fue eliminado. El TOC nativo*/
+            /* (device) y el custom (nuestras entradas + xrefs) son ahora modelos*/
+            /* SEPARADOS; ya no hay merge. Default = "native" (el índice propio del*/
+            /* device). Ver toc_state.qmd filteredModel y dv_logic tocBuildModelNow.*/
+            property ~&7083178290016&~ tocFilterMode: "native"
+            property ~&6503679477&~ tocLoading: ~&214625660372&~
+            property ~&197102514&~ _nativeTocModel: []
+            /* Snapshot del TOC custom backend-driven: ChiplinksBackend.loadTocCustom*/
+            /* (user entries + cross-doc xrefs, ordenado por order_idx), con `page`*/
+            /* resuelto en QML (xochitl-coupled). Lo construye tocBuildModelNow; lo*/
+            /* consume el modo "user" de toc_state.filteredModel.*/
+            property ~&197102514&~ tocCustomModel: []
+            /* "¿este doc tiene índice?" barato y EAGER: se basa en el TOC nativo*/
+            /* crudo + las entradas de usuario, NO en el tocModel construido (que*/
+            /* ahora es lazy). Lo usan los botones de TOC del foldout/sidebar para*/
+            /* mostrarse sin forzar el build de 1000+ ítems al abrir el doc.*/
+            readonly property ~&6503679477&~ tocHasContent:
+                (_nativeTocModel && _nativeTocModel.~&7082886407723&~ > 0) ||
+                (tocItems && tocItems.~&7082886407723&~ > 0)
+            /* Cross-doc selection / navigation / return state moved to the backend*/
+            /* LinkFlow FSM (ChiplinksBackend + db/LinkFlow). The old transient props*/
+            /* (_crossDocPendingPageId/_XrefKey/_DeletedXref, _crossDoc*BackTarget/Stack,*/
+            /* _backlinkReturn*) are gone — see LINKFLOW_FSM.md.*/
+            property ~&7083178290016&~ _tocLoadingDocId: ""
+            property ~&6503679477&~ _tocModelRebuilding: ~&214625660372&~
+            property ~&6503679477&~ _nativeTocLoaded: ~&214625660372&~
+            property ~&197102514&~ _tocPageIdToIndex: ({})
+            property ~&197102514&~ _tocIndexToPageId: ({})
+            property ~&7083178290016&~ _tocCacheDocId: ""
+            /* pageCount al momento de construir la page-cache. O(1) para detectar*/
+            /* si el doc cambió de cantidad de páginas (notebook). NO usar*/
+            /* Object.keys(_tocIndexToPageId).length: es O(N) y además nunca iguala*/
+            /* pageCount si alguna página no tiene id → rebuild en cada llamada → O(N²).*/
+            property ~&197088788&~ _tocCachePageCount: -1
+            property ~&6503679477&~ _tocBuildPending: ~&214625660372&~
+            /* Transient single-burst guard for tocLoadEntries: dedups the 2-3*/
+            /* synchronous eager callers that fire within ONE open (crossdoc*/
+            /* onDocumentChanged + _open_helper + pages.onVisibleChanged) into a*/
+            /* single load, WITHOUT blocking a legitimate later reopen (cleared via*/
+            /* Qt.callLater after the synchronous burst). NOT keyed on doc.id — that*/
+            /* would strand a same-doc reopen empty (the GRAVE bug of Sesión #21).*/
+            property ~&6503679477&~ _tocLoadedThisTick: ~&214625660372&~
+            /* Coalesces the double reload when addCrossDocTocItem emits both*/
+            /* tocItemsChanged AND linksChanged (one loadTocItems per tick).*/
+            property ~&6503679477&~ _tocItemsReloadQueued: ~&214625660372&~
+            property ~&197102514&~ _globalPinsModel: []
+
+            /* Caches populated by tocBuildModelNow / pin page changes.*/
+            /* Reading these in property bindings is O(1); calling loadPins*/
+            /* inside a binding triggers a SQL query per visible delegate per*/
+            /* scroll tick, which locks the UI.*/
+            /**/
+            /* _pinCountByLinkId: total pins for an xref, keyed by xref id.*/
+            /* _pinByLinkAndPage: pin row keyed by "linkId:page". Lets the*/
+            /*   delegate answer isPinned / pinColorIdx without a query.*/
+            /* _pinsOnCurrentPage: full pin list for the current page. Used*/
+            /*   by pinSnapResolve during drag (without it, every onPositionChanged*/
+            /*   would round-trip to sqlite).*/
+            property ~&197102514&~ _pinCountByLinkId: ({})
+            property ~&197102514&~ _pinByLinkAndPage:  ({})
+            property ~&197102514&~ _pinsOnCurrentPage: []
+
+            /* === Stub properties (overridden by feature mods when they port) ===*/
+            property ~&197102514&~  _backlinksList: []
+            property ~&6503679477&~ _backlinksLoading: ~&214625660372&~
+            property ~&197088788&~  _backlinksRequestGen: 0
+
+            /* Link panels (recent-links + backlinks grids) replacing the old toolbar*/
+            /* dropdowns: overlay visibility + the recents snapshot the panel renders*/
+            /* (loaded by documentView.linkLoadRecents in dv_crossdoc.qmd).*/
+            property ~&6503679477&~ linkRecentsGridVisible: ~&214625660372&~
+            property ~&6503679477&~ backlinksGridVisible:   ~&214625660372&~
+            property ~&197102514&~  linkRecentsList: []
+
+            /* rmhBookmarksModel / rmhBookmarked are declared in*/
+            /* supermod_bookmarks/dv_bookmarks.qmd (real implementations).*/
+            /* They are NOT stubbed here: declaring them in both files would*/
+            /* produce a double declaration in the same FocusScope.*/
+
+            property ~&6503679477&~   _pinPlacementActive: ~&214625660372&~
+            property ~&7083178290016&~ _pinPlacementXrefKey: ""
+            property ~&6504243117&~   _pinTentativeX: -1
+            property ~&6504243117&~   _pinTentativeY: -1
+            property ~&6503679477&~   _pinTentativeVisible: ~&214625660372&~
+            property ~&7083178290016&~ _pinEditingId: ""
+            property ~&6504243117&~   _pinSnapGuideX: -1
+            property ~&6504243117&~   _pinSnapGuideY: -1
+            property ~&6503679477&~   pinAnyDragging: ~&214625660372&~
+            property ~&197102514&~    _visiblePins: []
+
+            readonly property ~&197102514&~ pinColorPalette: ["#1a1a1a", "#505050", "#909090", "#c0c0c0"]
+            readonly property ~&6504243117&~ pinSnapThreshold: 0.018
+            /* Default placement now comes from global settings (chiplinks section),*/
+            /* literal fallback preserves the original behaviour if unset.*/
+            readonly property ~&6504243117&~ pinDefaultX: _setting("pin.defaultX", 0.42)
+            /* Y is now ABSOLUTE scene_y (px from page top), not a fraction — so a pin*/
+            /* can sit anywhere on a tall PDF page or an infinite-scroll notebook. X stays*/
+            /* a centered page-width fraction [0,1]. See Sesión #25 in progress.md.*/
+            readonly property ~&6504243117&~ pinDefaultY: _setting("pin.defaultY", 988)   /* scene px*/
+            readonly property ~&6504243117&~ pinDefaultStaggerY: 110     /* scene px*/
+            /* X bounds: centered page-width fraction. Off-screen-horizontal = invisible. KEEP.*/
+            readonly property ~&6504243117&~ pinBoundsMin: 0.005         /* X only*/
+            readonly property ~&6504243117&~ pinBoundsMax: 0.995         /* X only*/
+            readonly property ~&6504243117&~ pinDragBoundsMin: 0.005     /* X only*/
+            readonly property ~&6504243117&~ pinDragBoundsMax: 0.995     /* X only*/
+            /* Y bounds: absolute scene_y px, per-page, top-origin. Effectively unbounded*/
+            /* (tall PDFs + infinite-scroll notebooks); just a sanity guard vs corrupt rows.*/
+            readonly property ~&6504243117&~ pinYBoundsMin: 0.0
+            readonly property ~&6504243117&~ pinYBoundsMax: 100000.0
+            readonly property ~&6504243117&~ pinNudgeStepX: 0.005        /* X fraction*/
+            readonly property ~&6504243117&~ pinNudgeStepY: 10           /* Y scene px*/
+            readonly property ~&6504243117&~ pinSnapMoveThreshold: 0.008
+            readonly property ~&6504243117&~ pinCollisionRadius: 0.04    /* X collision (fraction)*/
+            readonly property ~&6504243117&~ pinCollisionRadiusY: 60     /* Y collision (scene px)*/
+            readonly property ~&6504243117&~ pinSnapThresholdY: 30       /* Y snap (scene px)*/
+            readonly property ~&6504243117&~ pinMaxStaggerY: 1600        /* scene px stagger cap*/
+            readonly property ~&6504243117&~ uiBookmarkCornerTopMargin: -35
+            readonly property ~&6504243117&~ uiCrossDocReturnTopOffset: 25
+            /* Z-LAYER CONTRACT (user: "the toolbar must cover everything; nothing the*/
+            /* mod creates may obstruct it"). The native chrome container (_uiContainer,*/
+            /* which holds the Toolbar) is raised to this ceiling so EVERY mod overlay*/
+            /* (pins 200, post-it chips 210, grids/panels 300s, post-it editor 400,*/
+            /* dialogs 1000) renders BELOW the toolbar. Single source of truth; see*/
+            /* dv_toolbar_wiring.qmd which applies it. Keep mod overlay z values < this.*/
+            readonly property ~&197088788&~ zChrome: 9000
+
+            /* === E-ink ANIMATION mode during mod drags (traceable view-state) ===*/
+            /* Participates in xochitl's screen-mode machine the NATIVE way (same*/
+            /* pattern as PageSlider.qml's fastUpdateArea): while a ScreenModeItem*/
+            /* with mode=Animation is VISIBLE, ScreenDriver flips globalMode to*/
+            /* Animation (low-latency EPD waveform, no full flashes); hiding it*/
+            /* lets the driver fall back to Content on its own — we NEVER force*/
+            /* globalMode by hand (surfaces-eink rule: read it, don't fight it).*/
+            /* Pure view concern per the BloC line: gated ONLY by the existing*/
+            /* drag flags, no backend state involved. Trace: [supermod-anim] log.*/
+            readonly property ~&6503679477&~ supermodAnimActive: pinAnyDragging || _postitAnyDragging
+            ~&10578197394989910333&~ {
+                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                ~&6504074414&~: ~&10578197394989910333&~.~&254477590585233257&~
+                ~&233748328658231&~: ~&15793094956877902211&~.supermodAnimActive
+                ~&8399878573055752961&~: "supermod-drag-anim"
+                /* On EXIT, hand the ghosting the fast waveform left to the NATIVE*/
+                /* cleaner (same API as the 5-finger gesture). A full clear is a*/
+                /* visible flash, so only after an episode long enough to leave a*/
+                /* trail; the dwell is logged either way for tuning.*/
+                property ~&6504243117&~ _animEnteredAt: 0
+                ~&13733777459642361598&~: {
+                    ~&5972376&~ (~&233748328658231&~) {
+                        _animEnteredAt = ~&6502586279&~.now();
+                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod-anim] ENTER animation mode (pin/post-it drag)");
+                    } ~&6503784146&~ {
+                        ~&197102514&~ dwell = ~&6502586279&~.now() - _animEnteredAt;
+                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod-anim] EXIT animation mode (pin/post-it drag) dwell=" + dwell + ~&"5972521&~);
+                        ~&5972376&~ (_animEnteredAt > 0 && dwell > 600 && ~&15793094956877902211&~.~&482865290967253827&~) {
+                            ~&15793094956877902211&~.~&482865290967253827&~.~&8021204117616398611&~("supermod drag end");
+                        }
+                    }
+                }
+            }
+
+            /* The just-created xref id, so its TOC delegate self-starts inline editing*/
+            /* (the only cross-doc transient still in QML — it's pure view glue).*/
+            property ~&7083178290016&~ _tocNewCrossDocXrefKey: ""
+            /* Cross-doc select gate: when the target doc opens during a selection, a stray*/
+            /* page-grid "click" can auto-fire the page selection before the user picks.*/
+            /* tocSelectPageForCrossDoc ignores any select before this timestamp (ms).*/
+            property ~&6504243117&~ _crossDocSelectGateUntil: 0
+            /* LinkFlow nonce: captured from an openDocAtPage action, echoed back on the*/
+            /* doc-load hooks so the FSM drops stale completions (step 6).*/
+            property ~&197102514&~ _linkFlowId: 0
+
+            /* === Build debounce (kept, 40ms) ===*/
+            ~&214604601930&~ {
+                ~&5972374&~: _tocBuildDebounceTimer
+                ~&7713147298280334&~: 40
+                ~&7083121289162&~: ~&214625660372&~
+                ~&495358363329399331&~: {
+                    ~&6504254477&~._tocBuildPending = ~&214625660372&~;
+                    ~&6504254477&~.tocBuildModelNow();
+                }
+            }
+
+            /* === Toast queue (kept verbatim from legacy) ===*/
+            property ~&197102514&~    _toastQueue: []
+            property ~&7083178290016&~ _toastMessage: ""
+            property ~&197102514&~    _toastUndoFn: ~&6504117156&~
+            property ~&6503679477&~   _toastVisible: ~&214625660372&~
+
+            ~&214604601930&~ {
+                ~&5972374&~: _toastDismissTimer
+                ~&7713147298280334&~: 5000
+                ~&7083121289162&~: ~&214625660372&~
+                ~&495358363329399331&~: ~&15793094956877902211&~._toastDismiss()
+            }
+
+            function toastShow(~&233736549263054&~, undoCallback) {
+                ~&5972376&~ (!~&233736549263054&~) ~&7083121450889&~;
+                ~&214622607920&~ q = _toastQueue.~&214641468857&~();
+                q.~&6504189257&~({ ~&233736549263054&~: String(~&233736549263054&~), ~&6504360831&~: undoCallback || ~&6504117156&~ });
+                _toastQueue = q;
+                ~&5972376&~ (!_toastVisible) _toastShowNext();
+            }
+
+            function _toastShowNext() {
+                ~&5972376&~ (_toastQueue.~&7082886407723&~ === 0) {
+                    _toastVisible = ~&214625660372&~;
+                    _toastMessage = "";
+                    _toastUndoFn = ~&6504117156&~;
+                    ~&7083121450889&~;
+                }
+                ~&214622607920&~ q = _toastQueue.~&214641468857&~();
+                ~&214622607920&~ ~&6504100136&~ = q.~&214641325223&~();
+                _toastQueue = q;
+                _toastMessage = ~&6504100136&~.~&233736549263054&~;
+                _toastUndoFn = ~&6504100136&~.~&6504360831&~;
+                _toastVisible = ~&6504329801&~;
+                _toastDismissTimer.~&233743006639214&~();
+            }
+
+            function _toastDismiss() {
+                _toastDismissTimer.~&6504295855&~();
+                _toastVisible = ~&214625660372&~;
+                ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~._toastShowNext);
+            }
+
+            function _toastUndoActivate() {
+                ~&214622607920&~ cb = _toastUndoFn;
+                _toastDismiss();
+                ~&5972376&~ (cb) cb();
+            }
+        }
+    END TRAVERSE
+END AFFECT

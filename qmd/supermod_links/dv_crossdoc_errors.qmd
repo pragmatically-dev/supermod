@@ -1,0 +1,62 @@
+AFFECT [[1224665461898798997]]
+    IMPORT [[6504469795.6504031891.8399831271885303833]] [[180922.180921]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE AFTER ALL
+        INSERT {
+            ~&7081645463424&~ {
+                ~&5972374&~: _tocCrossDocErrorLoader
+                ~&7082453764421&~: ~&214625660372&~
+                property ~&7083178290016&~ xrefKey: ""
+                property ~&7083178290016&~ ~&8399437315161921173&~: ""
+                property ~&7083178290016&~ ~&15848919715906354904&~: ""
+                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                ~&180995&~: 1000
+
+                ~&16021043814775702381&~: ~&4498845937083848685&~ {
+                    ~&214642559243&~: _tocCrossDocErrorLoader.~&8399437315161921173&~
+                    ~&478136262235079021&~: _tocCrossDocErrorLoader.~&15848919715906354904&~
+                    ~&11971920598453341784&~: ~&6504222003&~("Delete entry")
+                    ~&13523480105588542791&~: ~&6504222003&~(~&"7081277108079&~)
+                    ~&8399893700003527327&~: {
+                        ~&5972376&~ (_tocCrossDocErrorLoader.xrefKey) {
+                            ~&15793094956877902211&~.tocDeleteEntryWithUndo(_tocCrossDocErrorLoader.xrefKey);
+                        }
+                        _tocCrossDocErrorLoader.~&7082453764421&~ = ~&214625660372&~;
+                    }
+                    ~&8399894427373474444&~: _tocCrossDocErrorLoader.~&7082453764421&~ = ~&214625660372&~
+                }
+            }
+
+            ~&7081645463424&~ {
+                ~&5972374&~: _tocCrossDocDownloadLoader
+                ~&7082453764421&~: ~&214625660372&~
+                property ~&197102514&~ targetEntry: ~&6504117156&~
+                property ~&7083178290016&~ targetPageKey: ""
+                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                ~&180995&~: 1000
+
+                ~&16021043814775702381&~: ~&4498845937083848685&~ {
+                    ~&214642559243&~: ~&6504222003&~("Document needs download")
+                    ~&478136262235079021&~: ~&6504222003&~("Download \"%1\" to view the linked page?").~&197080195&~(
+                        _tocCrossDocDownloadLoader.targetEntry?.~&505890565057603928&~ || "")
+                    ~&11971920598453341784&~: ~&6504222003&~("Download")
+                    ~&13523480105588542791&~: ~&6504222003&~(~&"7081277108079&~)
+                    ~&8399893700003527327&~: {
+                        ~&5972376&~ (_tocCrossDocDownloadLoader.targetEntry) {
+                            ~&254540341572282132&~.~&7712989590835962&~.~&3952912134228341651&~(
+                                _tocCrossDocDownloadLoader.targetEntry.~&5972374&~,
+                                ~&4691151359052086259&~.~&7711911984627466&~.~&7081931736463&~);
+                        }
+                        _tocCrossDocDownloadLoader.~&7082453764421&~ = ~&214625660372&~;
+                    }
+                    ~&8399894427373474444&~: _tocCrossDocDownloadLoader.~&7082453764421&~ = ~&214625660372&~
+                }
+            }
+
+            /* Cross-doc on-canvas return button removed (sesión #26): redundant now*/
+            /* that the backlinks section surfaces the source doc. The one-slot return*/
+            /* (TOC header arrow) lives in the LinkFlow FSM; the old dead back-stack*/
+            /* state was deleted with the FSM migration.*/
+        }
+    END TRAVERSE
+END AFFECT

@@ -1,0 +1,43 @@
+AFFECT [[1224665461898798997]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            property ~&197088788&~ _tocSavedScrollPosition: -1
+
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ~&6504254477&~
+                function ~&13184053911240945935&~() {
+                    _tocSavedScrollPosition = -1;
+                }
+            }
+
+            function tocShowView() {
+                ~&5972376&~ (!~&214637513689&~.~&233748328658231&~) {
+                    _tocSavedScrollPosition = (~&254547437090201330&~ && ~&254547437090201330&~.~&502817364213021138&~)
+                        ? ~&254547437090201330&~.~&502817364213021138&~.~&7082534202858&~.~&180994&~ : -1;
+                }
+                ~&214637513689&~.tocShowView(~&6504329801&~);
+                ~&214637513689&~.~&233748328658231&~ = ~&6504329801&~;
+                /* El modelo del TOC ahora es LAZY (no se construye al abrir el*/
+                /* doc). Esta es la ruta "desde toolbar/foldout" (tocFromToolbar*/
+                /* = true), que el hook de pages.onVisibleChanged saltea a*/
+                /* propósito — así que construimos acá explícitamente. Si el TOC*/
+                /* nativo todavía no se parseó, onTableOfContentsUpdated lo*/
+                /* (re)construye cuando llega, porque pages.visible ya es true.*/
+                ~&15793094956877902211&~.tocBuildModel();
+            }
+
+            function tocCloseView() {
+                ~&214637513689&~.tocHandleRejected();
+            }
+
+            function tocRestoreScrollPosition() {
+                ~&5972376&~ (_tocSavedScrollPosition >= 0 && ~&254547437090201330&~ && ~&254547437090201330&~.~&502817364213021138&~) {
+                    ~&254547437090201330&~.~&502817364213021138&~.~&7082534202858&~.~&180994&~ = _tocSavedScrollPosition;
+                    _tocSavedScrollPosition = -1;
+                }
+            }
+
+        }
+    END TRAVERSE
+END AFFECT

@@ -1,0 +1,136 @@
+AFFECT [[1224665461898798997]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            /* View-state: true while the rectangular crop marquee is armed.*/
+            property ~&6503679477&~ _captureCropActive: ~&214625660372&~
+
+            /* Toolbar intents (wired in dv_toolbar_wiring.qmd).*/
+            function captureStartCrop() {
+                _captureCropActive = ~&6504329801&~;
+            }
+            function captureStartInk() {
+                /* No-op: tapping the native lasso already activates selection (its own*/
+                /* onPressed → requestPenSelect). We must NOT set primaryPen.tool here —*/
+                /* forcing the lasso as the primary writing tool breaks the toolbar pencil.*/
+            }
+        }
+
+        LOCATE AFTER ALL
+        INSERT {
+            /* Rectangular crop marquee. Parented to the scene view so its*/
+            /* coordinates are view (= framebuffer) pixels, exactly what*/
+            /* captureAreaAsPng expects. Free aspect (no square lock).*/
+            ~&6502786168&~ {
+                ~&5972374&~: _captureCropOverlay
+                ~&7083038346995&~: ~&254547437090201330&~
+                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                ~&180995&~: 8000
+                ~&233748328658231&~: ~&15793094956877902211&~._captureCropActive
+                ~&233726547792244&~: ~&233748328658231&~
+
+                property ~&6504243117&~ ~&7083177689071&~: 0
+                property ~&6504243117&~ ~&7083177689072&~: 0
+                property ~&6504243117&~ endX: 0
+                property ~&6504243117&~ endY: 0
+                property ~&6503679477&~ ~&7712938630327660&~: ~&214625660372&~
+                /* One-shot: true between firing a capture and receiving its*/
+                /* captureReady. Gates the Connections so only the capture WE just*/
+                /* requested is handled (a stray/duplicate signal is ignored), and it*/
+                /* survives the async gap even though the overlay hides on release.*/
+                property ~&6503679477&~ _awaitingCapture: ~&214625660372&~
+
+                /* NO dim/tint overlay here: the capture reads the framebuffer (what's*/
+                /* on screen), so any overlay we paint would be baked INTO the captured*/
+                /* image (it came out grey). Only the thin marquee border is drawn, and*/
+                /* it's removed before the crop is taken (dragging=false on release).*/
+
+                ~&254501108490678590&~ {
+                    ~&5972374&~: _cropBox
+                    ~&233748328658231&~: _captureCropOverlay.~&7712938630327660&~
+                    ~&214622605608&~: ~&"503220030291830651&~
+                    ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                    ~&7082507052999&~.~&214646099849&~: 2
+                    ~&180993&~: ~&6502909715&~.~&197092973&~(_captureCropOverlay.~&7083177689071&~, _captureCropOverlay.endX)
+                    ~&180994&~: ~&6502909715&~.~&197092973&~(_captureCropOverlay.~&7083177689072&~, _captureCropOverlay.endY)
+                    ~&214646099849&~:  ~&6502909715&~.~&197079679&~(_captureCropOverlay.endX - _captureCropOverlay.~&7083177689071&~)
+                    ~&7082729686082&~: ~&6502909715&~.~&197079679&~(_captureCropOverlay.endY - _captureCropOverlay.~&7083177689072&~)
+                }
+
+                ~&254494525842443467&~ {
+                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                    preventStealing: ~&6504329801&~
+                    ~&254542253295368380&~: (~&214634474738&~) => {
+                        _captureCropOverlay.~&7083177689071&~ = ~&214634474738&~.~&180993&~;
+                        _captureCropOverlay.~&7083177689072&~ = ~&214634474738&~.~&180994&~;
+                        _captureCropOverlay.endX = ~&214634474738&~.~&180993&~;
+                        _captureCropOverlay.endY = ~&214634474738&~.~&180994&~;
+                        _captureCropOverlay.~&7712938630327660&~ = ~&6504329801&~;
+                    }
+                    ~&12756630929064311461&~: (~&214634474738&~) => {
+                        _captureCropOverlay.endX = ~&214634474738&~.~&180993&~;
+                        _captureCropOverlay.endY = ~&214634474738&~.~&180994&~;
+                    }
+                    ~&8399894427451672267&~: (~&214634474738&~) => {
+                        _captureCropOverlay.~&7712938630327660&~ = ~&214625660372&~;
+                        ~&15793094956877902211&~._captureCropActive = ~&214625660372&~;
+                        ~&197102514&~ rw = ~&6502909715&~.~&197079679&~(_captureCropOverlay.endX - _captureCropOverlay.~&7083177689071&~);
+                        ~&197102514&~ rh = ~&6502909715&~.~&197079679&~(_captureCropOverlay.endY - _captureCropOverlay.~&7083177689072&~);
+                        ~&5972376&~ (rw > 10 && rh > 10) {
+                            ~&197102514&~ rx = ~&6502909715&~.~&197092973&~(_captureCropOverlay.~&7083177689071&~, _captureCropOverlay.endX);
+                            ~&197102514&~ ry = ~&6502909715&~.~&197092973&~(_captureCropOverlay.~&7083177689072&~, _captureCropOverlay.endY);
+                            ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod-capture] crop request " + rw + ~&"180993&~ + rh + " @ " + rx + ~&"180917&~ + ry);
+                            /* Only arm the handler if the backend actually started a*/
+                            /* capture (returns false if dropped/no framebuffer).*/
+                            ~&5972376&~ (ChiplinksBackend.captureAreaAsPng(rx, ry, rw, rh, rx + rw / 2, ry + rh / 2))
+                                _captureCropOverlay._awaitingCapture = ~&6504329801&~;
+                        } ~&6503784146&~ {
+                            ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod-capture] crop canceled (too small)");
+                        }
+                    }
+
+                    /* Make the crop marquee accept the PEN, not just the finger. On the*/
+                    /* reMarkable the stylus is captured by the scene's pen-input surface,*/
+                    /* so a bare MouseArea only sees touch. A PenInputBlocker bound to the*/
+                    /* ONE shared surfaceManager suppresses scene capture over this region,*/
+                    /* letting the pen fall through as ordinary press/move/release events to*/
+                    /* the MouseArea above (the exact native TextDragHotspot.qml pattern).*/
+                    /* PenInputBlocker is imported natively by DocumentView (used at*/
+                    /* DocumentView.qml:1474) so no IMPORT is needed.*/
+                    ~&1161017062936003774&~ {
+                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                        ~&233736386151492&~: ~&6504254477&~.~&7713433736001692&~.~&12558692746048943629&~
+                    }
+                }
+
+                ~&428051690305612204&~ {
+                    ~&7083194890448&~: ChiplinksBackend
+                    /* Only react to the capture WE requested — a Connections is not*/
+                    /* gated by its parent Item's visible/enabled, so without this a*/
+                    /* stray/duplicate captureReady would insert an image onto whatever*/
+                    /* page is open. _awaitingCapture survives the async gap (the overlay*/
+                    /* hides on release, so gating on `visible` would miss the result).*/
+                    ~&233726547792244&~: _captureCropOverlay._awaitingCapture
+                    /* The PNG is on disk → insert it on the current page. We do NOT*/
+                    /* force documentViewTools.primaryPen.tool = Line.SelectionTool here:*/
+                    /* xochitl rejects making the lasso the PRIMARY (writing) tool*/
+                    /* ("Primary tool must be a writing tool: SelectionTool") and it*/
+                    /* corrupted the first toolbar pencil (it rendered as a black box).*/
+                    /* insertImageFileAsSceneItem already drops the image as a floating*/
+                    /* item the user can drag; no tool change needed.*/
+                    function onCaptureReady(fileUrl, centerX, centerY) {
+                        _captureCropOverlay._awaitingCapture = ~&214625660372&~;
+                        ~&197102514&~ sceneCenter = ~&254547437090201330&~.~&505871454011417333&~(~&5971598&~.~&214638019283&~(centerX, centerY));
+                        ~&11179472971324505115&~.insertImageFileAsSceneItem(~&5971598&~.resolvedUrl(fileUrl), sceneCenter);
+                        /* The scene embedded its own copy → drop the temp PNG so /tmp*/
+                        /* (RAM on the device) never accumulates captures.*/
+                        ChiplinksBackend.discardCaptureFile(fileUrl);
+                        ~&15793094956877902211&~.toastShow(~&6504222003&~("Captured"));
+                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod-capture] inserted " + fileUrl);
+                    }
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

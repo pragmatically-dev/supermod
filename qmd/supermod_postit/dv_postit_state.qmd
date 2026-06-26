@@ -1,0 +1,258 @@
+AFFECT [[1224665461898798997]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            /* === Post-it state ===*/
+            property ~&7083178290016&~ _postitScratchId:   ""    /* QuickSheet doc id (append target)*/
+            property ~&197102514&~    _postitScratchDoc:   ~&6504117156&~  /* QuickSheet wrapper or null*/
+            property ~&197102514&~    _postitExpandedDoc:  ~&6504117156&~  /* resolved scratch doc of the OPEN editor*/
+
+            property ~&197102514&~    _visiblePostits:     []
+            property ~&7083178290016&~ _postitExpandedId:   ""
+            property ~&7083178290016&~ _postitExpandedPageKey: ""
+            property ~&7083178290016&~ _postitExpandedTitle: ""
+            property ~&7083178290016&~ _postitEditingId:    ""
+            property ~&6503679477&~   _postitAnyDragging:  ~&214625660372&~
+            property ~&6503679477&~   _postitCreating:     ~&214625660372&~
+
+            /* Scale bounds/step + default now come from global settings (postit*/
+            /* section); literal fallbacks preserve the original behaviour if unset.*/
+            readonly property ~&6504243117&~ _postitScaleMin:     _setting("postit.scaleMin", 0.6)
+            readonly property ~&6504243117&~ _postitScaleMax:     _setting("postit.scaleMax", 3.0)
+            readonly property ~&6504243117&~ _postitScaleStep:    _setting("postit.scaleStep", 0.25)
+            readonly property ~&6504243117&~ _postitScaleDefault: _setting("postit.scaleDefault", 1.0)
+
+            function _postitNewId() {
+                ~&7083121450889&~ "pi_" + ~&6502586279&~.now().~&7713616118928163&~(36) + ~&"180968&~ +
+                       ~&6502909715&~.~&214626058827&~(~&6502909715&~.random() * 1000000000).~&7713616118928163&~(36);
+            }
+
+            /* The QuickSheet is the post-it ink store. quickSheets() gets-or-creates*/
+            /* it synchronously and returns the document wrapper.*/
+            function postitEnsureScratchDoc() {
+                ~&5972376&~ (_postitScratchDoc) ~&7083121450889&~ _postitScratchDoc;
+                try {
+                    ~&197102514&~ qs = ~&2918312801265623842&~.~&498775298796480658&~();
+                    ~&5972376&~ (qs && qs.~&6504337259&~ === ~&214587000859&~.~&7711571060833448&~) {
+                        _postitScratchDoc = qs;
+                        _postitScratchId  = qs.~&5972374&~ || "";
+                    }
+                } catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit] ensureScratchDoc error: " + ~&180974&~); }
+                ~&7083121450889&~ _postitScratchDoc;
+            }
+
+            /* Resolve any post-it's own scratch doc wrapper (QuickSheet or legacy).*/
+            function postitDocFor(scratchDocId) {
+                ~&5972376&~ (!scratchDocId) ~&7083121450889&~ ~&6504117156&~;
+                try { ~&7083121450889&~ ~&233694067165438&~.~&8399431778896295215&~(scratchDocId); }
+                catch (~&180974&~) { ~&7083121450889&~ ~&6504117156&~; }
+            }
+
+            /* Safe page INDEX for a (scratchDocId, pageKey) — used by the chip /*/
+            /* dashboard ThumbnailProvider. Cheap wrapper lookup, never a DB query.*/
+            function postitPageIndexFor(scratchDocId, pageKey) {
+                ~&5972376&~ (!scratchDocId || !pageKey) ~&7083121450889&~ -1;
+                try {
+                    ~&197102514&~ ~&180992&~ = ~&233694067165438&~.~&8399431778896295215&~(scratchDocId);
+                    ~&7083121450889&~ ~&180992&~ ? ~&180992&~.~&254543134822321786&~(pageKey) : -1;
+                } catch (~&180974&~) { ~&7083121450889&~ -1; }
+            }
+
+            /* === Create ===*/
+            function postitAddAtCenter() {
+                ~&5972376&~ (!~&7712934851008712&~ || ~&477346483278306569&~ < 0) ~&7083121450889&~;
+                ~&197102514&~ ~&6504243460&~ = pinDefaultX;
+                ~&197102514&~ ~&6504243461&~ = pinDefaultY;
+                ~&5972376&~ (~&254547437090201330&~ && ~&254547437090201330&~.~&502817364213021138&~) {
+                    ~&197102514&~ vpCenter = ~&5971598&~.~&214638019283&~(~&254547437090201330&~.~&214646099849&~ * 0.5, ~&254547437090201330&~.~&7082729686082&~ * 0.5);
+                    ~&197102514&~ scenePt  = ~&254547437090201330&~.~&502817364213021138&~.~&505871454011417333&~(vpCenter);
+                    ~&197102514&~ docW = ~&7082020628281&~.~&14593461789319363686&~ ? 1404 : 1872;
+                    ~&6504243460&~ = scenePt.~&180993&~ / docW + 0.5;
+                    ~&6504243461&~ = scenePt.~&180994&~;
+                }
+                postitCreate(~&6504243460&~, ~&6504243461&~);
+            }
+
+            function postitCreate(~&6504243460&~, ~&6504243461&~) {
+                ~&5972376&~ (_postitCreating) ~&7083121450889&~;
+                ~&5972376&~ (!~&7712934851008712&~ || ~&477346483278306569&~ < 0) ~&7083121450889&~;
+                ~&197102514&~ scratch = postitEnsureScratchDoc();
+                ~&5972376&~ (!scratch) { toastShow(~&6504222003&~("Could not open the QuickSheet store")); ~&7083121450889&~; }
+                _postitCreating = ~&6504329801&~;
+                ~&197102514&~ hostDocId = ~&7712934851008712&~.~&5972374&~;
+                ~&197102514&~ hostPage  = ~&477346483278306569&~;
+                ~&197102514&~ scratchId = _postitScratchId;
+                ~&197102514&~ ~&180993&~ = ~&6502909715&~.~&197092719&~(pinBoundsMin,  ~&6502909715&~.~&197092973&~(pinBoundsMax,  ~&6504243460&~));
+                ~&197102514&~ ~&180994&~ = ~&6502909715&~.~&197092719&~(pinYBoundsMin, ~&6502909715&~.~&197092973&~(pinYBoundsMax, ~&6504243461&~));
+                try {
+                    ~&197102514&~ ~&254543146496699612&~ = ~&4577806659545151269&~.~&254543146496699612&~;
+                    /* ALWAYS append a fresh QuickSheet page (never touch the user's*/
+                    /* existing quick-sheet pages). addPage on the quicksheet wrapper*/
+                    /* needs no mounted SceneView (LibraryActions.qml:110).*/
+                    ~&243560541951849292&~.~&16020793420971466418&~(scratch, -1, ~&"214583350385&~, ~&254543146496699612&~, function() {
+                        try {
+                            ~&197102514&~ ~&197088462&~ = scratch.~&254543134818768527&~ - 1;
+                            ~&197102514&~ pageKey = (~&197088462&~ >= 0) ? scratch.~&254533375641282938&~(~&197088462&~) : "";
+                            ~&15793094956877902211&~._postitFinishCreate(pageKey, scratchId, hostDocId, hostPage, ~&180993&~, ~&180994&~);
+                        } catch (e2) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit] create cb error: " + e2); }
+                        ~&15793094956877902211&~._postitCreating = ~&214625660372&~;
+                    });
+                } catch (~&180974&~) {
+                    ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit] create error: " + ~&180974&~);
+                    _postitCreating = ~&214625660372&~;
+                }
+            }
+
+            function _postitFinishCreate(pageKey, scratchId, hostDocId, hostPage, ~&180993&~, ~&180994&~) {
+                ~&5972376&~ (!pageKey) { toastShow(~&6504222003&~("Could not add post-it")); ~&7083121450889&~; }
+                ~&197102514&~ pid = _postitNewId();
+                ~&197102514&~ ~&5972579&~ = ChiplinksBackend.upsertPostit({
+                    ~&5972374&~:             pid,
+                    host_doc_id:    hostDocId,
+                    host_page:      hostPage,
+                    ~&180993&~:              ~&180993&~,
+                    ~&180994&~:              ~&180994&~,
+                    ~&214641137009&~:          ~&15793094956877902211&~._postitScaleDefault,
+                    color_idx:      0,
+                    scratch_doc_id: scratchId,
+                    scratch_page:   pageKey,
+                    ~&214642559243&~:          ""
+                });
+                ~&5972376&~ (~&5972579&~) {
+                    postitRebuildVisible();
+                    postitExpand(pid, pageKey, "", scratchId);
+                    toastShow(~&6504222003&~("Post-it added on page %1").~&197080195&~(hostPage + 1));
+                } ~&6503784146&~ {
+                    toastShow(~&6504222003&~("Could not add post-it"));
+                }
+            }
+
+            /* === Load / rebuild ===*/
+            function postitRebuildVisible() {
+                ~&5972376&~ (!~&7712934851008712&~ || ~&477346483278306569&~ < 0) { _visiblePostits = []; ~&7083121450889&~; }
+                try {
+                    _visiblePostits = ChiplinksBackend.loadPostitsForPage(~&7712934851008712&~.~&5972374&~, ~&477346483278306569&~) || [];
+                    /* Orphan sweep (#7) runs DEFERRED — calling Library.entryForId +*/
+                    /* pageForId here, inside the document's hot open path, crashed*/
+                    /* xochitl ("closed unexpectedly"). The timer fires once the doc is*/
+                    /* stable (the chips' own bindings already used pageForId safely).*/
+                    _postitOrphanSweepTimer.~&233743006639214&~();
+                } catch (~&180974&~) {
+                    ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit] rebuild error: " + ~&180974&~);
+                    _visiblePostits = [];
+                }
+            }
+
+            /* Orphan sweep (#7): if a post-it's QuickSheet page was deleted in the*/
+            /* native UI, its ink is gone — the chip would render an empty husk*/
+            /* forever. Detect: the scratch doc wrapper RESOLVES (guards against a*/
+            /* busy Library mis-reading as "deleted") but the page key no longer*/
+            /* maps. Soft-delete (postitsChanged re-pulls and converges) + one toast.*/
+            ~&214604601930&~ {
+                ~&5972374&~: _postitOrphanSweepTimer
+                ~&7713147298280334&~: 2500
+                ~&7083121289162&~: ~&214625660372&~
+                ~&495358363329399331&~: {
+                    ~&5972376&~ (!~&15793094956877902211&~.~&7712934851008712&~ || ~&15793094956877902211&~._postitAnyDragging) ~&7083121450889&~;
+                    try {
+                        ~&197102514&~ ~&6504254740&~ = ~&15793094956877902211&~._visiblePostits || [];
+                        ~&197102514&~ orphans = 0;
+                        ~&197085552&~ (~&197102514&~ ~&180978&~ = 0; ~&180978&~ < ~&6504254740&~.~&7082886407723&~; ~&180978&~++) {
+                            ~&197102514&~ ~&180987&~ = ~&6504254740&~[~&180978&~];
+                            ~&197102514&~ ~&180992&~ = ~&15793094956877902211&~.postitDocFor(~&180987&~.scratch_doc_id);
+                            /* Extra guard: the wrapper must have its pages LOADED*/
+                            /* (pageCount > 0) — right after boot a resolved wrapper can*/
+                            /* transiently report pageForId = -1 for every key, which*/
+                            /* would sweep HEALTHY post-its (false positive).*/
+                            ~&5972376&~ (~&180992&~ && ~&180992&~.~&254543134818768527&~ > 0
+                                  && ~&15793094956877902211&~.postitPageIndexFor(~&180987&~.scratch_doc_id, ~&180987&~.scratch_page) < 0) {
+                                ChiplinksBackend.markPostitDeleted(~&180987&~.~&5972374&~);
+                                orphans++;
+                            }
+                        }
+                        ~&5972376&~ (orphans > 0) {
+                            ~&15793094956877902211&~.toastShow(orphans === 1
+                                ? ~&6504222003&~("A post-it was removed: its quick sheet page was deleted")
+                                : ~&6504222003&~("%1 post-its were removed: their quick sheet pages were deleted").~&197080195&~(orphans));
+                        }
+                    } catch (~&180974&~) {
+                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit] orphan sweep error: " + ~&180974&~);
+                    }
+                }
+            }
+
+            function _postitRowById(~&5972374&~) {
+                ~&197085552&~ (~&197102514&~ ~&180978&~ = 0; ~&180978&~ < _visiblePostits.~&7082886407723&~; ~&180978&~++) {
+                    ~&5972376&~ (_visiblePostits[~&180978&~].~&5972374&~ === ~&5972374&~) ~&7083121450889&~ _visiblePostits[~&180978&~];
+                }
+                ~&7083121450889&~ ~&6504117156&~;
+            }
+
+            /* === Expand / minimise ===*/
+            function postitExpand(~&5972374&~, pageKey, ~&214642559243&~, scratchDocId) {
+                postitExitEdit();
+                _postitExpandedId      = ~&5972374&~ || "";
+                _postitExpandedPageKey = pageKey || "";
+                _postitExpandedTitle   = ~&214642559243&~ || "";
+                _postitExpandedDoc     = postitDocFor(scratchDocId);
+            }
+
+            function postitMinimize() {
+                _postitExpandedId      = "";
+                _postitExpandedPageKey = "";
+                _postitExpandedTitle   = "";
+                _postitExpandedDoc     = ~&6504117156&~;
+                /* The scratch page may have been re-rendered by the worker → reload*/
+                /* so the chip thumbnail picks up the fresh ink.*/
+                ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~.postitRebuildVisible);
+            }
+
+            /* === Persist geometry (move + resize share one path) ===*/
+            function postitPersistGeometry(~&5972374&~, ~&6504243460&~, ~&6504243461&~, ~&214641137009&~) {
+                ~&197102514&~ ~&197098625&~ = _postitRowById(~&5972374&~);
+                ~&197102514&~ ~&180993&~ = ~&6502909715&~.~&197092719&~(pinBoundsMin,  ~&6502909715&~.~&197092973&~(pinBoundsMax,  ~&6504243460&~));
+                ~&197102514&~ ~&180994&~ = ~&6502909715&~.~&197092719&~(pinYBoundsMin, ~&6502909715&~.~&197092973&~(pinYBoundsMax, ~&6504243461&~));
+                ~&197102514&~ ~&180988&~ = ~&6502909715&~.~&197092719&~(_postitScaleMin, ~&6502909715&~.~&197092973&~(_postitScaleMax, ~&214641137009&~ || 1.0));
+                ChiplinksBackend.setPostitGeometry(~&5972374&~, ~&180993&~, ~&180994&~, ~&180988&~, ~&197098625&~ ? (~&197098625&~.color_idx || 0) : 0);
+            }
+
+            /* === Edit-mode (chip toolbar) ===*/
+            function postitEnterEdit(~&5972374&~) { _postitEditingId = ~&5972374&~ || ""; }
+            function postitExitEdit()    { _postitEditingId = ""; }
+
+            /* === Delete (soft) + undo ===*/
+            function postitRemoveWithUndo(~&5972374&~) {
+                ~&5972376&~ (!~&5972374&~) ~&7083121450889&~;
+                ~&5972376&~ (_postitExpandedId === ~&5972374&~) postitMinimize();
+                postitExitEdit();
+                ChiplinksBackend.markPostitDeleted(~&5972374&~);
+                toastShow(~&6504222003&~("Post-it removed"), function() {
+                    ChiplinksBackend.restorePostit(~&5972374&~);
+                    ~&15793094956877902211&~.toastShow(~&6504222003&~("Post-it restored"));
+                });
+            }
+
+            /* === Reactivity ===*/
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ~&15793094956877902211&~
+                function ~&2104365313657427216&~() {
+                    ~&15793094956877902211&~.postitExitEdit();
+                    ~&5972376&~ (~&15793094956877902211&~._postitExpandedId !== "")
+                        ~&15793094956877902211&~.postitMinimize();
+                    ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~.postitRebuildVisible);
+                }
+            }
+
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ChiplinksBackend
+                function onPostitsChanged(hostDocId) {
+                    ~&5972376&~ (~&15793094956877902211&~._postitAnyDragging) ~&7083121450889&~;
+                    ~&5972376&~ (hostDocId && ~&15793094956877902211&~.~&7712934851008712&~ && hostDocId !== ~&15793094956877902211&~.~&7712934851008712&~.~&5972374&~)
+                        ~&7083121450889&~;
+                    ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~.postitRebuildVisible);
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

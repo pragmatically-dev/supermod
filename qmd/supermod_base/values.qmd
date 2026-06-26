@@ -1,0 +1,126 @@
+AFFECT [[1658694193319203921]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+
+    TRAVERSE [[6502786168]]
+        LOCATE AFTER ALL INSERT {
+            /* Single global gate for ALL supermod QML console logging. Default OFF*/
+            /* so the mod never writes to stderr in normal use — a write to a dead*/
+            /* SSH/USB debug terminal can block the GUI thread and hard-freeze the*/
+            /* tablet (the idle-freeze we chased). Every supermod console.log/warn is*/
+            /* wrapped `if (Values.supermodTrace) console.…`. Values is the common*/
+            /* singleton, reachable from every host (DocumentView/MainView/*/
+            /* TableOfContent/Pages — all import common). Flip to true (or rebuild)*/
+            /* only for debugging; pairs with the C++ side's CHIPLINKS_TRACE default-off.*/
+            property ~&6503679477&~ supermodTrace: ~&214625660372&~
+
+            /* Ebook page ↔ ratio cache (per-doc).*/
+            property ~&197102514&~ _ebookRatioCache: ({})
+            property ~&7083178290016&~ _ebookRatioCacheDocId: ""
+
+            function _ebookRatioCacheReset(~&214623780460&~) {
+                ~&5972376&~ (_ebookRatioCacheDocId !== ~&214623780460&~) {
+                    _ebookRatioCache = ({});
+                    _ebookRatioCacheDocId = ~&214623780460&~ || "";
+                }
+            }
+
+            function tocEbookPageToRatio(doc, ~&254543134825829310&~) {
+                ~&5972376&~ (!doc) ~&7083121450889&~ 0;
+                _ebookRatioCacheReset(doc.~&5972374&~);
+                ~&214622607920&~ cacheKey = String(~&254543134825829310&~);
+                ~&5972376&~ (_ebookRatioCache.~&962658491532182526&~(cacheKey)) ~&7083121450889&~ _ebookRatioCache[cacheKey];
+                ~&197091758&~ totalNotes = 0;
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < doc.~&254543134818768527&~; ~&180978&~++) {
+                    ~&5972376&~ (doc.~&8399622833342862200&~(~&180978&~)) totalNotes++;
+                }
+                ~&214622607920&~ originalPageCount = doc.~&254543134818768527&~ - totalNotes;
+                ~&197091758&~ notesBefore = 0;
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < ~&254543134825829310&~; ~&180978&~++) {
+                    ~&5972376&~ (doc.~&8399622833342862200&~(~&180978&~)) notesBefore++;
+                }
+                ~&214622607920&~ originalPageNumber = ~&254543134825829310&~ - notesBefore;
+                ~&214622607920&~ ~&7083121414760&~ = originalPageCount > 1
+                    ? originalPageNumber / (originalPageCount - 1)
+                    : 0;
+                _ebookRatioCache[cacheKey] = ~&7083121414760&~;
+                ~&7083121450889&~ ~&7083121414760&~;
+            }
+
+            function tocRatioToEbookPage(doc, ratio) {
+                ~&5972376&~ (!doc) ~&7083121450889&~ -1;
+                ~&197091758&~ totalNotes = 0;
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < doc.~&254543134818768527&~; ~&180978&~++) {
+                    ~&5972376&~ (doc.~&8399622833342862200&~(~&180978&~)) totalNotes++;
+                }
+                ~&214622607920&~ originalPageCount = doc.~&254543134818768527&~ - totalNotes;
+                ~&214622607920&~ originalPageNumber = originalPageCount > 1
+                    ? ~&6502909715&~.~&214640404177&~(ratio * (originalPageCount - 1))
+                    : 0;
+                ~&197091758&~ originalsSeen = 0;
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < doc.~&254543134818768527&~; ~&180978&~++) {
+                    ~&5972376&~ (!doc.~&8399622833342862200&~(~&180978&~)) {
+                        ~&5972376&~ (originalsSeen === originalPageNumber) ~&7083121450889&~ ~&180978&~;
+                        originalsSeen++;
+                    }
+                }
+                ~&7083121450889&~ -1;
+            }
+
+            function tocResolvePageFromKey(doc, ~&197090674&~, tocPageForIdFn) {
+                ~&5972376&~ (!doc || !~&197090674&~) ~&7083121450889&~ -1;
+                ~&5972376&~ (~&7083223278816&~ ~&197090674&~ === ~&'7082983611378&~) ~&7083121450889&~ ~&197090674&~;
+                ~&5972376&~ (~&197090674&~.~&8400089168236034054&~("p:")) {
+                    ~&214622607920&~ ratio = parseFloat(~&197090674&~.~&254548200562243306&~(2));
+                    ~&5972376&~ (doc.~&7713012671454059&~ === 4 /*Document.Ebook*/) {
+                        ~&7083121450889&~ tocRatioToEbookPage(doc, ratio);
+                    }
+                    ~&7083121450889&~ doc.~&254543134818768527&~ > 1
+                        ? ~&6502909715&~.~&214640404177&~(ratio * (doc.~&254543134818768527&~ - 1))
+                        : 0;
+                }
+                ~&5972376&~ (!~&214629831714&~(~&7081731278802&~(~&197090674&~))) ~&7083121450889&~ ~&7081731278802&~(~&197090674&~);
+                ~&7083121450889&~ tocPageForIdFn ? tocPageForIdFn(~&197090674&~) : -1;
+            }
+
+            /* Reads xochitl's own .content file (the list of page UUIDs in*/
+            /* their canonical order). Used to resolve page_key UUIDs ↔*/
+            /* page indices. Stays as file:// read because it's xochitl's*/
+            /* data, not ours.*/
+            readonly property ~&7083178290016&~ tocContentFilePath: "file:///home/root/.local/share/remarkable/xochitl/%1.content"
+
+            function tocReadContentPages(~&8399386052748489877&~, ~&7712874493159382&~) {
+                ~&214622607920&~ req =  new  XMLHttpRequest();
+                req.~&6504147419&~("GET", tocContentFilePath.~&197080195&~(~&8399386052748489877&~));
+                req.onreadystatechange = () => {
+                    ~&5972376&~ (req.readyState === XMLHttpRequest.DONE) {
+                        try {
+                            ~&214622607920&~ ~&233724020048228&~ = ~&6502785411&~.parse(req.responseText);
+                            ~&5972376&~ (~&233724020048228&~.cPages && ~&233724020048228&~.cPages.~&214637513689&~) {
+                                ~&214622607920&~ live = ~&233724020048228&~.cPages.~&214637513689&~.~&7082656280847&~(~&180985&~ => !(~&180985&~.deleted && ~&180985&~.deleted.~&214644635174&~ === 1));
+                                ~&7712874493159382&~(live.~&197092711&~(~&180985&~ => ~&180985&~.~&5972374&~));
+                            } ~&6503784146&~ ~&5972376&~ (~&214582398184&~.~&233731871973028&~(~&233724020048228&~.~&214637513689&~)) {
+                                ~&7712874493159382&~(~&233724020048228&~.~&214637513689&~);
+                            } ~&6503784146&~ {
+                                ~&7712874493159382&~(~&6504117156&~);
+                            }
+                        } catch (~&180974&~) {
+                            ~&7712874493159382&~(~&6504117156&~);
+                        }
+                    }
+                };
+                req.~&6504279475&~();
+            }
+
+            /* Doc duplication: backend handles toc_items copy with fresh*/
+            /* ids and remapped parent_ids. page_keys are NOT remapped from*/
+            /* source UUIDs to new UUIDs (legacy did this via uuidMap from*/
+            /* .content); if a page is missing, the TOC entry surfaces with*/
+            /* page_missing=1 instead of crashing.*/
+            function tocCopyForDuplicate(sourceDocId, newDocId) {
+                ~&5972376&~ (!sourceDocId || !newDocId) ~&7083121450889&~;
+                ~&214622607920&~ copied = ChiplinksBackend.copyTocForDuplicate(sourceDocId, newDocId);
+                ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod] tocCopyForDuplicate", sourceDocId, "→", newDocId, ~&"180931&~, copied, ~&"214629893131&~);
+            }
+        }
+    END TRAVERSE
+END AFFECT

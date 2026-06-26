@@ -1,0 +1,1701 @@
+AFFECT [[2328484894988065446]]
+    IMPORT [[6504469795.6504031891.233725061010028]] [[180922.180921]]
+    IMPORT [[6504469795.6504031891.7082625047238]] [[180922.180921]] [[7081372714662]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397788359424131273]] > [[8397993708429497603]]#[[7713531976371484]] > [[8397993708429497603]]#[[7713694313857736]]
+        LOCATE AFTER [[14782856275639928575]]#[[14839296689095546654]]
+        INSERT {
+            ~&6502786168&~ {
+                ~&5972374&~: chiplinksDashboard
+                ~&8399878573055752961&~: "chiplinksDashboard"
+                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                ~&180995&~: 300
+                /* M2: never visible while a document is loaded underneath.*/
+                ~&233748328658231&~: ~&254540341572282132&~.chiplinksDashboardVisible && !(~&15793094956877902211&~.~&6503936152&~ && ~&15793094956877902211&~.~&6503936152&~.~&6314931342349002257&~)
+                ~&233726547792244&~: ~&233748328658231&~
+
+                /* 0 = Overview, 1 = Graph, 2 = Browse*/
+                property ~&197088788&~ ~&233744279141054&~: 0
+
+                /* ---- SHARED DB plumbing (single source of truth) ----*/
+                property ~&6503679477&~   _busy:        ~&214625660372&~   /* single-flight gate for ALL DB touches*/
+                property ~&197102514&~    stats:        ({})    /* last statsReady() bundle; Overview reads this*/
+                property ~&6503679477&~   _statsLoaded: ~&214625660372&~   /* Overview one-shot load guard*/
+                property ~&7083178290016&~ _dbInfoText:  ""      /* footer text, materialised on stats load*/
+
+                /* ---- BROWSE state ----*/
+                property ~&197088788&~  browseEntity:  0        /* 0 Docs,1 Links,2 ToC,3 Pins,4 Recents,5 Post-its*/
+                property ~&197102514&~  browseDocs:    []       /* GLOBAL — loadDocs(false,200)*/
+                property ~&197102514&~  browseLinks:   []       /* GLOBAL — loadAllLinks(false,200)*/
+                property ~&197102514&~  browseToc:     []       /* DRILL  — loadTocItems(docId)*/
+                property ~&197102514&~  browsePins:    []       /* DRILL  — loadPins(linkId)*/
+                property ~&197102514&~  browseRecents: []       /* GLOBAL — recentTargets(200)*/
+                property ~&197102514&~  browsePostits: []       /* GLOBAL — loadAllPostits(false,200)*/
+                property ~&7083178290016&~ _tocDocId:   ""       /* current ToC drill parent (a Docs row id)*/
+                property ~&7083178290016&~ _pinsLinkId: ""       /* current Pins drill parent (a Links row id)*/
+                property ~&6503679477&~   _browseEntered: ~&214625660372&~ /* lazy: first Browse entry loads Docs*/
+
+                /* ---- read-only inspect panel state ----*/
+                property ~&197102514&~  _inspectRow:  ({})      /* tapped row's modelData (pure read)*/
+                property ~&197088788&~  _inspectKind: -1        /* which entity the inspected row belongs to*/
+                property ~&6503679477&~ _inspectOpen: ~&214625660372&~
+
+                /* ---- GRAPH (section 1) state — Obsidian-style static graph ----*/
+                property ~&197102514&~    graph:        ({})    /* last graphLayoutReady(): {nodes,edges,totalDocs,truncated}*/
+                property ~&6503679477&~   _graphLoaded: ~&214625660372&~    /* one-shot load guard (mirror of _statsLoaded)*/
+                property ~&197102514&~    _graphNodes:  []       /* laid-out nodes: [{id,name,degree,x,y}] (read-only after build)*/
+                property ~&197102514&~    _graphEdges:  []       /* payload edges:  [{s,t,weight}] (read-only after build)*/
+                property ~&197102514&~    _nodeIndex:   ({})     /* id -> index into _graphNodes (built once with the layout)*/
+                property ~&7083178290016&~ _selectedId:  ""       /* tapped node id ("" = nothing selected)*/
+                property ~&197102514&~    _nbr:         ({})     /* neighbour membership set built ONCE per tap: { id:true,... }*/
+                property ~&197088788&~    _graphW:      0        /* host width  captured at build time (for re-fit on rotate)*/
+                property ~&197088788&~    _graphH:      0        /* host height captured at build time*/
+
+                /* discrete zoom (Obsidian-like). zoomScale is pure-read for bindings.*/
+                readonly property ~&197102514&~ zoomSteps: [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+                property ~&197088788&~  _zoomIndex: 2
+                readonly property ~&6504243117&~ zoomScale: zoomSteps[_zoomIndex]
+
+                /* ---- GRAPH: tunable layout/render parameters (Obsidian-style) ----*/
+                /* VISUAL params (fade/node-size/thickness) re-render instantly via direct*/
+                /* bindings. FORCE params (center/repel/link/distance) call _requestGraphLayout()*/
+                /* to re-run the Fruchterman-Reingold layout in C++ (off the GUI thread).*/
+                /* Graph params now PERSIST in global settings (graph section). The*/
+                /* 7 render props bind to the cached snapshot; the panel steppers and*/
+                /* the Settings section both write through setSetting → settingsChanged*/
+                /* refreshes _gSettings → these re-evaluate. Defaults live in C++.*/
+                property ~&197102514&~ _gSettings: ChiplinksBackend.loadSettings("graph")
+                function _gv(~&180980&~, fb) { ~&197102514&~ ~&180991&~ = _gSettings[~&180980&~]; ~&7083121450889&~ (~&180991&~ === ~&254550717068498203&~ || ~&180991&~ === ~&6504117156&~) ? fb : ~&180991&~; }
+                property ~&6504243117&~ _gLabelFade: _gv("graph.labelFade", 0.75)   /* label zoom threshold*/
+                property ~&6504243117&~ _gNodeSize:  _gv("graph.nodeSize", 1.0)     /* node radius multiplier*/
+                property ~&197088788&~  _gEdgeWidth: ~&6502909715&~.~&214640404177&~(_gv("graph.edgeWidth", 1))  /* edge thickness (px)*/
+                property ~&6504243117&~ _gGravity:   _gv("graph.gravity", 0.3)      /* centripetal pull*/
+                property ~&6504243117&~ _gRepulsion: _gv("graph.repulsion", 1.0)    /* node-node repulsion*/
+                property ~&6504243117&~ _gLinkForce: _gv("graph.linkForce", 1.0)    /* edge attraction*/
+                property ~&6504243117&~ _gLinkDist:  _gv("graph.linkDist", 1.0)     /* ideal edge length*/
+                property ~&6503679477&~ _gSettingsOpen: ~&214625660372&~
+                property ~&197088788&~  _gTick: 0           /* bumped on any change so panel value text re-reads*/
+                readonly property ~&197102514&~ _gParamDefs: [
+                    { ~&197090674&~: "graph.labelFade", ~&214632764553&~: ~&6504222003&~("Label fade"),     ~&197092973&~: 0.5, ~&197092719&~: 3.0, ~&6504295525&~: 0.25, force: ~&214625660372&~, dec: 2 },
+                    { ~&197090674&~: "graph.nodeSize",  ~&214632764553&~: ~&6504222003&~("Node size"),      ~&197092973&~: 0.3, ~&197092719&~: 3.0, ~&6504295525&~: 0.1,  force: ~&214625660372&~, dec: 1 },
+                    { ~&197090674&~: "graph.edgeWidth", ~&214632764553&~: ~&6504222003&~("Link thickness"), ~&197092973&~: 1,   ~&197092719&~: 6,   ~&6504295525&~: 1,    force: ~&214625660372&~, dec: 0 },
+                    { ~&197090674&~: "graph.gravity",   ~&214632764553&~: ~&6504222003&~("Center force"),   ~&197092973&~: 0.0, ~&197092719&~: 1.0, ~&6504295525&~: 0.1,  force: ~&6504329801&~,  dec: 1 },
+                    { ~&197090674&~: "graph.repulsion", ~&214632764553&~: ~&6504222003&~("Repel force"),    ~&197092973&~: 0.2, ~&197092719&~: 3.0, ~&6504295525&~: 0.2,  force: ~&6504329801&~,  dec: 1 },
+                    { ~&197090674&~: "graph.linkForce", ~&214632764553&~: ~&6504222003&~("Link force"),     ~&197092973&~: 0.2, ~&197092719&~: 3.0, ~&6504295525&~: 0.2,  force: ~&6504329801&~,  dec: 1 },
+                    { ~&197090674&~: "graph.linkDist",  ~&214632764553&~: ~&6504222003&~("Link distance"),  ~&197092973&~: 0.3, ~&197092719&~: 3.0, ~&6504295525&~: 0.2,  force: ~&6504329801&~,  dec: 1 }
+                ]
+
+                /* ---- GRAPH: layout now lives in C++ (BLoC). QML only fires the*/
+                /* intent and renders the State. Nodes arrive with x/y normalized*/
+                /* in [0,1]; node/edge delegates map them to viewport px.*/
+                function _gParams() {
+                    ~&7083121450889&~ {
+                        gravity:   _gGravity,
+                        repulsion: _gRepulsion,
+                        linkForce: _gLinkForce,
+                        linkDist:  _gLinkDist
+                    };
+                }
+
+                /* Event DOWN: ask the backend to (re)build + lay out the graph.*/
+                /* Single-flight via _busy; the State comes back on graphLayoutReady.*/
+                function _requestGraphLayout() {
+                    ~&5972376&~ (_busy) ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    ChiplinksBackend.graphLayout(60, _gParams());
+                }
+
+                /* ---- GRAPH: id -> laid-out node (O(1) via _nodeIndex; null if pruned/missing) ----*/
+                function _nodeById(~&5972374&~) {
+                    ~&197102514&~ ix = _nodeIndex;
+                    ~&5972376&~ (ix && ix[~&5972374&~] !== ~&254550717068498203&~) ~&7083121450889&~ _graphNodes[ix[~&5972374&~]];
+                    ~&7083121450889&~ ~&6504117156&~;
+                }
+
+                /* ---- GRAPH: tap a node -> cache neighbour set ONCE (delegates only read it) ----*/
+                function _selectNode(~&5972374&~) {
+                    ~&5972376&~ (!~&5972374&~) { _clearSelection(); ~&7083121450889&~; }
+                    ~&197102514&~ nb = {};
+                    nb[~&5972374&~] = ~&6504329801&~;
+                    ~&197102514&~ es = _graphEdges || [];
+                    ~&197085552&~ (~&197102514&~ ~&180978&~ = 0; ~&180978&~ < es.~&7082886407723&~; ~&180978&~++) {
+                        ~&5972376&~ (es[~&180978&~].~&180988&~ === ~&5972374&~) nb[es[~&180978&~].~&180989&~] = ~&6504329801&~;
+                        ~&6503784146&~ ~&5972376&~ (es[~&180978&~].~&180989&~ === ~&5972374&~) nb[es[~&180978&~].~&180988&~] = ~&6504329801&~;
+                    }
+                    _nbr = nb;
+                    _selectedId = ~&5972374&~;
+                }
+                function _clearSelection() {
+                    _selectedId = "";
+                    _nbr = ({});
+                }
+
+                /* ---- GRAPH: discrete zoom (clamped). Pure index moves; scale is a binding. ----*/
+                function _zoomIn()  { ~&5972376&~ (_zoomIndex < zoomSteps.~&7082886407723&~ - 1) _zoomIndex++; }
+                function _zoomOut() { ~&5972376&~ (_zoomIndex > 0) _zoomIndex--; }
+
+                /* ---- GRAPH: settings param helpers (bracket-access by key) ----*/
+                function _gDef(~&197090674&~) {
+                    ~&197102514&~ ~&180973&~ = _gParamDefs;
+                    ~&197085552&~ (~&197102514&~ ~&180978&~ = 0; ~&180978&~ < ~&180973&~.~&7082886407723&~; ~&180978&~++) ~&5972376&~ (~&180973&~[~&180978&~].~&197090674&~ === ~&197090674&~) ~&7083121450889&~ ~&180973&~[~&180978&~];
+                    ~&7083121450889&~ ~&6504117156&~;
+                }
+                /* key is now the SETTING key ("graph.X"). Persist through the backend;*/
+                /* settingsChanged refreshes _gSettings → the render props + panel re-read.*/
+                function _gStep(~&197090674&~, dir) {
+                    ~&197102514&~ def = _gDef(~&197090674&~);
+                    ~&5972376&~ (!def) ~&7083121450889&~;
+                    ~&197102514&~ ~&180991&~ = _gv(~&197090674&~, def.~&197092973&~) + dir * def.~&6504295525&~;
+                    ~&5972376&~ (~&180991&~ < def.~&197092973&~) ~&180991&~ = def.~&197092973&~;
+                    ~&5972376&~ (~&180991&~ > def.~&197092719&~) ~&180991&~ = def.~&197092719&~;
+                    ~&5972376&~ (def.dec === 0) ~&180991&~ = ~&6502909715&~.~&214640404177&~(~&180991&~);
+                    ChiplinksBackend.setSetting(~&197090674&~, "" + ~&180991&~);
+                }
+                function _gReset() {
+                    ChiplinksBackend.resetSettings("graph");
+                }
+                function _gFmt(~&197090674&~) {
+                    ~&197102514&~ def = _gDef(~&197090674&~);
+                    ~&197102514&~ ~&180991&~ = _gv(~&197090674&~, 0);
+                    ~&7083121450889&~ def ? ~&7081731278802&~(~&180991&~).~&233745927191932&~(def.dec) : ("" + ~&180991&~);
+                }
+
+                /* Settings master-detail navigation: "" = the section list (master);*/
+                /* a section key ("chiplinks"/"postit"/"graph") = that section's submenu*/
+                /* (detail). Reset to "" whenever the Settings tab is (re)opened.*/
+                property ~&7083178290016&~ _setActiveSection: ""
+                /* Display metadata for the 3 settings sections (title + one-line blurb*/
+                /* shown on the master list row). The schema rows themselves come from C++.*/
+                readonly property ~&197102514&~ _setSectionMeta: [
+                    { sec: "chiplinks", ~&214642559243&~: ~&6504222003&~("Chiplinks (pins)"),
+                      blurb: ~&6504222003&~("Pin size, hold-to-move, default placement, tap-to-go") },
+                    { sec: "postit", ~&214642559243&~: ~&6504222003&~("Post-its"),
+                      blurb: ~&6504222003&~("Chip size, zoom range, long-press, editor canvas, FAB corner") },
+                    { sec: "graph", ~&214642559243&~: ~&6504222003&~("Graph view"),
+                      blurb: ~&6504222003&~("Node size, link thickness, forces, label fade") }
+                ]
+                function _setSectionTitle(sec) {
+                    ~&197085552&~ (~&197102514&~ ~&180978&~ = 0; ~&180978&~ < _setSectionMeta.~&7082886407723&~; ~&180978&~++)
+                        ~&5972376&~ (_setSectionMeta[~&180978&~].sec === sec) ~&7083121450889&~ _setSectionMeta[~&180978&~].~&214642559243&~;
+                    ~&7083121450889&~ sec;
+                }
+
+                /* Cached settings-schema snapshots for the Settings section (key→[rows]).*/
+                /* Loaded imperatively (NOT in a delegate/model binding — performance:R-01)*/
+                /* when the Settings tab is shown and whenever a setting changes.*/
+                property ~&197102514&~ _setSchemas: ({})
+                function _reloadSettingsSchemas() {
+                    _setSchemas = {
+                        "chiplinks": ChiplinksBackend.settingsSchema("chiplinks"),
+                        "postit":    ChiplinksBackend.settingsSchema("postit"),
+                        "graph":     ChiplinksBackend.settingsSchema("graph")
+                    };
+                }
+                ~&428051690305612204&~ {
+                    ~&7083194890448&~: ChiplinksBackend
+                    function onSettingsChanged(~&233744279141054&~) {
+                        chiplinksDashboard._reloadSettingsSchemas();
+                        ~&5972376&~ (~&233744279141054&~ === "graph") {
+                            chiplinksDashboard._gSettings = ChiplinksBackend.loadSettings("graph");
+                            chiplinksDashboard._gTick++;
+                            chiplinksDashboard._requestGraphLayout();
+                        }
+                    }
+                }
+
+                /* ---- GRAPH: open the doc for a node id (reachable open-by-id; null-guarded) ----*/
+                function _openGraphNode(~&214623780460&~) {
+                    ~&5972376&~ (!~&214623780460&~) ~&7083121450889&~;
+                    ~&197102514&~ ~&214624950331&~ = ~&233694067165438&~.~&8399431778896295215&~(~&214623780460&~);   /* id IS a Library entry id (same as _drillToc)*/
+                    ~&5972376&~ (!~&214624950331&~) ~&7083121450889&~;                       /* deleted/missing -> no-op*/
+                    ~&254540341572282132&~.chiplinksDashboardVisible = ~&214625660372&~;   /* drop overlay first (M2)*/
+                    ~&6622264625199152281&~(~&214624950331&~, function() { ~&15793094956877902211&~.~&6503936152&~.~&16350670950752674586&~(~&214624950331&~); });
+                }
+
+                /* One-shot: stats(5) when the dashboard first becomes visible.*/
+                ~&13733777459642361598&~: {
+                    ~&5972376&~ (~&233748328658231&~ && !_statsLoaded && !_busy) {
+                        _statsLoaded = ~&6504329801&~;
+                        _busy = ~&6504329801&~;
+                        ChiplinksBackend.stats(5);
+                    }
+                }
+
+                /* ---- OVERVIEW: reset kick-off (single-flighted) ----*/
+                function _doReset() {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    _dashResetLoader.~&7082453764421&~ = ~&214625660372&~;
+                    ChiplinksBackend.resetDatabase();   /* async → maintenanceDone("resetDatabase", n)*/
+                }
+
+                /* ---- Dashboard-wide refresh (single-flighted). Re-fetches the ACTIVE*/
+                /* section's data NOW and invalidates the inactive sections' caches so they*/
+                /* reload fresh on next view (only one async can be in flight via _busy). ----*/
+                function _refreshActiveSection() {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    ~&5972376&~ (~&233744279141054&~ === 1) {
+                        /* Graph: rebuild from a fresh fetch.*/
+                        _statsLoaded = ~&214625660372&~;
+                        _browseEntered = ~&214625660372&~;
+                        _graphLoaded = ~&214625660372&~;
+                        _selectedId = "";
+                        _nbr = ({});
+                        _busy = ~&6504329801&~;
+                        ChiplinksBackend.graphLayout(60, _gParams());
+                    } ~&6503784146&~ ~&5972376&~ (~&233744279141054&~ === 2) {
+                        /* Browse: reload the active entity / current drill now (sync loaders*/
+                        /* self-gate on _busy); invalidate Overview + Graph for next view.*/
+                        _statsLoaded = ~&214625660372&~;
+                        _graphLoaded = ~&214625660372&~;
+                        ~&5972376&~ (browseEntity === 2) _drillToc(_tocDocId);
+                        ~&6503784146&~ ~&5972376&~ (browseEntity === 3) _drillPins(_pinsLinkId);
+                        ~&6503784146&~ _browseSelect(browseEntity);
+                    } ~&6503784146&~ {
+                        /* Overview: re-fetch stats now.*/
+                        _graphLoaded = ~&214625660372&~;
+                        _browseEntered = ~&214625660372&~;
+                        _busy = ~&6504329801&~;
+                        ChiplinksBackend.stats(5);
+                    }
+                }
+
+                /* ---- OVERVIEW: data-driven stat-card model (object literals live in this*/
+                /* function body → qmldiff-safe; the binding just passes `stats` so it re-runs*/
+                /* once when a new bundle arrives). Reads cached keys only — no DB. ----*/
+                function _ovCardData(~&180988&~) {
+                    ~&180988&~ = ~&180988&~ || ({});
+                    ~&7083121450889&~ [
+                        { ~&180991&~: (~&180988&~.docs_alive     || 0), ~&180972&~: ~&6504222003&~(~&"254481845007503899&~)      },
+                        { ~&180991&~: (~&180988&~.links_alive    || 0), ~&180972&~: ~&6504222003&~("Links")          },
+                        { ~&180991&~: (~&180988&~.crossDocEdges  || 0), ~&180972&~: ~&6504222003&~("Cross-doc edges") },
+                        { ~&180991&~: (~&180988&~.pins_total     || 0), ~&180972&~: ~&6504222003&~("Pins")           },
+                        { ~&180991&~: (~&180988&~.postits_total  || 0), ~&180972&~: ~&6504222003&~("Post-its")       },
+                        { ~&180991&~: (~&180988&~.toc_alive      || 0), ~&180972&~: ~&6504222003&~("ToC entries")    },
+                        { ~&180991&~: (~&180988&~.recents_total  || 0), ~&180972&~: ~&6504222003&~("Recents")        },
+                        { ~&180991&~: (~&180988&~.orphanDocs     || 0), ~&180972&~: ~&6504222003&~("Orphan docs")    },
+                        { ~&180991&~: (~&180988&~.dangling_links || 0), ~&180972&~: ~&6504222003&~("Dangling links") }
+                    ];
+                }
+
+                /* ---- BROWSE: entity selection. GLOBAL entities load now; drill*/
+                /* entities (ToC/Pins) show whatever a drill-down has materialised. ----*/
+                function _browseSelect(entity) {
+                    browseEntity = entity;
+                    ~&5972376&~ (entity === 0)
+                        _loadBrowseDocs();
+                    ~&6503784146&~ ~&5972376&~ (entity === 1)
+                        _loadBrowseLinks();
+                    ~&6503784146&~ ~&5972376&~ (entity === 4)
+                        _loadBrowseRecents();
+                    ~&6503784146&~ ~&5972376&~ (entity === 5)
+                        _loadBrowsePostits();
+                    /* entity 2 (ToC) / 3 (Pins): drill-downs, no global load.*/
+                }
+
+                /* ---- BROWSE: GLOBAL loaders (sync, single-flighted) ----*/
+                function _loadBrowseDocs() {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    try { browseDocs = ChiplinksBackend.loadDocs(~&214625660372&~, 200); }
+                    catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[chiplinks-dashboard] loadDocs failed: " + ~&180974&~); }
+                    _busy = ~&214625660372&~;
+                }
+                function _loadBrowseLinks() {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    try { browseLinks = ChiplinksBackend.loadAllLinks(~&214625660372&~, 200); }
+                    catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[chiplinks-dashboard] loadAllLinks failed: " + ~&180974&~); }
+                    _busy = ~&214625660372&~;
+                }
+                function _loadBrowseRecents() {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    try { browseRecents = ChiplinksBackend.recentTargets(200); }
+                    catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[chiplinks-dashboard] recentTargets failed: " + ~&180974&~); }
+                    _busy = ~&214625660372&~;
+                }
+                function _loadBrowsePostits() {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    try { browsePostits = ChiplinksBackend.loadAllPostits(~&214625660372&~, 200); }
+                    catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[chiplinks-dashboard] loadAllPostits failed: " + ~&180974&~); }
+                    _busy = ~&214625660372&~;
+                }
+
+                /* ---- BROWSE: drill-downs (tap a Doc → its ToC; tap a Link → its Pins) ----*/
+                function _drillToc(~&214623780460&~) {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    _tocDocId = ~&214623780460&~ || "";
+                    try { browseToc = ChiplinksBackend.loadTocItems(_tocDocId); }
+                    catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[chiplinks-dashboard] loadTocItems failed: " + ~&180974&~); }
+                    browseEntity = 2;
+                    _busy = ~&214625660372&~;
+                }
+                function _drillPins(linkId) {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    _pinsLinkId = linkId || "";
+                    try { browsePins = ChiplinksBackend.loadPins(_pinsLinkId); }
+                    catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[chiplinks-dashboard] loadPins failed: " + ~&180974&~); }
+                    browseEntity = 3;
+                    _busy = ~&214625660372&~;
+                }
+
+                /* ---- BROWSE: read-only inspect ----*/
+                function _inspect(kind, ~&197098625&~) {
+                    _inspectKind = kind;
+                    _inspectRow = ~&197098625&~ || ({});
+                    _inspectOpen = ~&6504329801&~;
+                }
+
+                /* ---- BROWSE: delete confirm + execute (per entity) ----*/
+                function _browseShowDelete() {
+                    _browseDeleteLoader.~&7082453764421&~ = ~&6504329801&~;
+                }
+                function _browseDoDelete() {
+                    ~&5972376&~ (_busy)
+                        ~&7083121450889&~;
+                    _busy = ~&6504329801&~;
+                    try {
+                        ~&197102514&~ ~&180987&~ = _inspectRow || ({});
+                        ~&5972376&~ (_inspectKind === 0) {
+                            ChiplinksBackend.markDocDeleted(~&180987&~.~&5972374&~);
+                            browseDocs = ChiplinksBackend.loadDocs(~&214625660372&~, 200);
+                        } ~&6503784146&~ ~&5972376&~ (_inspectKind === 1) {
+                            ChiplinksBackend.deleteLink(~&180987&~.~&5972374&~);
+                            browseLinks = ChiplinksBackend.loadAllLinks(~&214625660372&~, 200);
+                        } ~&6503784146&~ ~&5972376&~ (_inspectKind === 2) {
+                            ChiplinksBackend.deleteTocItem(~&180987&~.~&5972374&~);
+                            browseToc = ChiplinksBackend.loadTocItems(_tocDocId);
+                        } ~&6503784146&~ ~&5972376&~ (_inspectKind === 3) {
+                            ChiplinksBackend.removePin(~&180987&~.link_id, ~&180987&~.source_page);
+                            browsePins = ChiplinksBackend.loadPins(_pinsLinkId);
+                        } ~&6503784146&~ ~&5972376&~ (_inspectKind === 4) {
+                            ChiplinksBackend.forgetRecent(~&180987&~.target_doc_id, ~&180987&~.target_page_key);
+                            browseRecents = ChiplinksBackend.recentTargets(200);
+                        } ~&6503784146&~ ~&5972376&~ (_inspectKind === 5) {
+                            ChiplinksBackend.markPostitDeleted(~&180987&~.~&5972374&~);
+                            browsePostits = ChiplinksBackend.loadAllPostits(~&214625660372&~, 200);
+                        }
+                    } catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[chiplinks-dashboard] delete failed: " + ~&180974&~); }
+                    _busy = ~&214625660372&~;
+                    _inspectOpen = ~&214625660372&~;
+                    _browseDeleteLoader.~&7082453764421&~ = ~&214625660372&~;
+                    /* Theme E (P2-13): a Browse delete changed the counts — invalidate the*/
+                    /* Overview cache so it re-fetches stats next time it's shown.*/
+                    _statsLoaded = ~&214625660372&~;
+                }
+
+                /* M2: if a doc opens (e.g. future graph-node tap), drop the flag so*/
+                /* we don't reappear when it closes.*/
+                ~&428051690305612204&~ {
+                    ~&7083194890448&~: ~&15793094956877902211&~.~&6503936152&~
+                    function onDocumentLoadedChanged() {
+                        ~&5972376&~ (~&15793094956877902211&~.~&6503936152&~ && ~&15793094956877902211&~.~&6503936152&~.~&6314931342349002257&~)
+                            ~&254540341572282132&~.chiplinksDashboardVisible = ~&214625660372&~;
+                    }
+                }
+
+                /* ---- THE ONE backend sink: stats / maintenance / error ----*/
+                ~&428051690305612204&~ {
+                    ~&7083194890448&~: ChiplinksBackend
+
+                    /* stats() result → Overview bindings + cached dbInfo footer.*/
+                    function onStatsReady(~&180988&~) {
+                        chiplinksDashboard.stats = ~&180988&~;
+                        chiplinksDashboard._dbInfoText = ChiplinksBackend.dbInfo();  /* sync, called ONCE here*/
+                        chiplinksDashboard._busy = ~&214625660372&~;                            /* clears the reset→stats chain too*/
+                    }
+
+                    /* graphLayout() result → store the view-ready State (nodes already*/
+                    /* laid out in C++), build the id->index lookup for edge delegates,*/
+                    /* release the gate. Mirror of onStatsReady. NO DB call here.*/
+                    function onGraphLayoutReady(~&214641748202&~) {
+                        chiplinksDashboard.graph = ~&214641748202&~;        /* {nodes,edges,totalDocs,truncated}*/
+                        ~&197102514&~ ns = ~&214641748202&~.nodes || [];
+                        chiplinksDashboard._graphNodes = ns;
+                        chiplinksDashboard._graphEdges = ~&214641748202&~.edges || [];
+                        ~&197102514&~ nix = {};                            /* id -> index, O(1) edge endpoint resolve*/
+                        ~&197085552&~ (~&197102514&~ ~&180978&~ = 0; ~&180978&~ < ns.~&7082886407723&~; ~&180978&~++) nix[ns[~&180978&~].~&5972374&~] = ~&180978&~;
+                        chiplinksDashboard._nodeIndex = nix;
+                        chiplinksDashboard._selectedId = "";
+                        chiplinksDashboard._nbr = ({});
+                        chiplinksDashboard._graphLoaded = ~&6504329801&~;  /* set on SUCCESS → failed fetch re-arms*/
+                        chiplinksDashboard._busy = ~&214625660372&~;        /* release single-flight (mirror onStatsReady)*/
+                    }
+
+                    /* Post-reset refresh — ONLY for op==="resetDatabase" (never the*/
+                    /* six *Changed("") that resetDatabase also emits). Re-stats the*/
+                    /* Overview AND clears every Browse model so Browse re-lazy-loads.*/
+                    function onMaintenanceDone(op, n) {
+                        ~&5972376&~ (op === "resetDatabase") {
+                            /* Overview: clear + re-materialise via stats(5).*/
+                            chiplinksDashboard.stats = ({});
+                            chiplinksDashboard._dbInfoText = "";
+                            chiplinksDashboard._statsLoaded = ~&214625660372&~;   /* Overview shows "Loading…"*/
+                            /* Browse: clear all five models + drill state; re-arm lazy load.*/
+                            chiplinksDashboard.browseDocs = [];
+                            chiplinksDashboard.browseLinks = [];
+                            chiplinksDashboard.browseToc = [];
+                            chiplinksDashboard.browsePins = [];
+                            chiplinksDashboard.browseRecents = [];
+                            chiplinksDashboard._tocDocId = "";
+                            chiplinksDashboard._pinsLinkId = "";
+                            chiplinksDashboard._browseEntered = ~&214625660372&~;
+                            chiplinksDashboard._inspectOpen = ~&214625660372&~;
+                            /* Graph: clear payload + layout + selection; re-arm one-shot load.*/
+                            chiplinksDashboard.graph = ({});
+                            chiplinksDashboard._graphNodes = [];
+                            chiplinksDashboard._graphEdges = [];
+                            chiplinksDashboard._nodeIndex = ({});
+                            chiplinksDashboard._selectedId = "";
+                            chiplinksDashboard._nbr = ({});
+                            chiplinksDashboard._graphLoaded = ~&214625660372&~;
+                            /* Hold _busy through the chained stats(5); cleared in onStatsReady.*/
+                            chiplinksDashboard._busy = ~&6504329801&~;
+                            ChiplinksBackend.stats(5);
+                        }
+                    }
+
+                    /* Failure escape hatch: a failed reset/graphData/stats emits ONLY*/
+                    /* error() (no maintenanceDone), so release the gate or the UI sticks busy.*/
+                    function onError(op, ~&233736549263054&~) {
+                        ~&5972376&~ (op === "resetDatabase" || op === "graphLayout" || op === "stats")
+                            chiplinksDashboard._busy = ~&214625660372&~;
+                    }
+                }
+
+                /* opaque background + tap-swallow so nothing leaks to the library beneath*/
+                ~&254501108490678590&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&214622605608&~: ~&"214646069354&~ }
+                ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~ }
+
+                ~&425121728314878811&~.~&4184163301694413582&~ {
+                    ~&5972374&~: _dashHeader
+                    ~&7646428260611756892&~: ~&425121728314878811&~.~&4184163301694413582&~.~&7081254720423&~.~&7081254810046&~
+                    ~&214642559243&~: ~&6504222003&~("Chiplinks Dashboard")
+                    ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~ }
+
+                    ~&425121728314878811&~.~&4184163301694413582&~.~&7081261925573&~ {
+                        ~&8399601734642709923&~: ~&"3792857133055099087&~
+                        ~&6504315758&~: ~&6504222003&~(~&"6502513850&~)
+                        ~&254542236275632405&~: ~&254540341572282132&~.chiplinksDashboardVisible = ~&214625660372&~
+                    }
+                    /* Dashboard-wide Refresh — always visible (chrome, not per-section),*/
+                /* refreshes the ACTIVE section and invalidates the others.*/
+                ~&425121728314878811&~.~&7081261925573&~ {
+                    ~&5972374&~: _dashRefreshButton
+                    ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&499747351624466981&~: 24; ~&3441383163516681764&~: _dashTabs.~&3441383163516681764&~ }
+                    ~&6504315758&~: ~&6504222003&~("Refresh")
+                    ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&254547519794454865&~
+                    ~&233726547792244&~: !chiplinksDashboard._busy
+                    ~&254542236275632405&~: chiplinksDashboard._refreshActiveSection()
+                }
+
+                }
+
+                /* segmented control: borderless labels with a 2px underline on the active one*/
+                ~&197063777&~ {
+                    ~&5972374&~: _dashTabs
+                    ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&197100796&~: _dashHeader.~&7082507142622&~; ~&8399743405844438450&~: 24; ~&254549367831075482&~: 14 }
+                    ~&233744706647566&~: 36
+
+                    ~&7712155293725601&~ {
+                        ~&214634455770&~: [~&6504222003&~("Overview"), ~&6504222003&~("Graph"), ~&6504222003&~("Browse"), ~&6504222003&~(~&"7712198086779994&~)]
+                        ~&7712922269353028&~: ~&6502786168&~ {
+                            required property ~&197088788&~ ~&214629676161&~
+                            required property ~&197102514&~ ~&254539508423767444&~
+                            ~&214646099849&~: _segLabel.~&12921149980962105220&~
+                            ~&7082729686082&~: 44
+
+                            ~&425121728314878811&~.~&214594815081&~ {
+                                ~&5972374&~: _segLabel
+                                ~&233721384511543&~.~&197100796&~: ~&7083038346995&~.~&197100796&~
+                                ~&6504315758&~: ~&254539508423767444&~
+                                ~&214622605608&~: ~&"214621299494&~
+                                ~&6503823200&~.~&6503679370&~: chiplinksDashboard.~&233744279141054&~ === ~&214629676161&~
+                            }
+                            ~&254501108490678590&~ {
+                                ~&233721384511543&~.~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~
+                                ~&214646099849&~: ~&7083038346995&~.~&214646099849&~
+                                ~&7082729686082&~: 2
+                                ~&214622605608&~: ~&"214621299494&~
+                                ~&233748328658231&~: chiplinksDashboard.~&233744279141054&~ === ~&214629676161&~
+                            }
+                            ~&254494525842443467&~ {
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&254542236275632405&~: chiplinksDashboard.~&233744279141054&~ = ~&214629676161&~
+                            }
+                        }
+                    }
+                }
+
+                ~&254501108490678590&~ {
+                    ~&5972374&~: _dashDivider
+                    ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _dashTabs.~&7082507142622&~; ~&254549367831075482&~: 10 }
+                    ~&7082729686082&~: 1
+                    ~&214622605608&~: "#808080"
+                }
+
+                /* ----- SECTIONS -----*/
+                ~&6502786168&~ {
+                    ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _dashDivider.~&7082507142622&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }
+
+                    /* ============================ SETTINGS (section 3) — global SuperMod tunables ============================*/
+                    /* Generic, schema-driven settings UI: one collapsible block per mod*/
+                    /* section, each row a stepper (number) or choice chips (enum), driven*/
+                    /* entirely by ChiplinksBackend.settingsSchema/setSetting/resetSettings.*/
+                    /* Master-detail: a LIST of the 3 sections (each a tappable row that*/
+                    /* opens its submenu), and a DETAIL view with a Back button + that*/
+                    /* section's rows + Reset. Driven by _setActiveSection ("" = list).*/
+                    ~&6502786168&~ {
+                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                        ~&233748328658231&~: chiplinksDashboard.~&233744279141054&~ === 3
+                        ~&233726547792244&~: ~&233748328658231&~
+                        ~&13733777459642361598&~: {
+                            ~&5972376&~ (~&233748328658231&~) {
+                                chiplinksDashboard._setActiveSection = "";
+                                chiplinksDashboard._reloadSettingsSchemas();
+                            }
+                        }
+
+                        /* ---- HEADER: Back (detail only) + title + Reset (detail only) ----*/
+                        ~&6502786168&~ {
+                            ~&5972374&~: _setHeader
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~
+                                      ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24; ~&254549367831075482&~: 20 }
+                            ~&7082729686082&~: 52
+
+                            /* Back affordance — only in a section's detail view.*/
+                            /* The MouseArea IS the tap target (sized to its Row child). The*/
+                            /* Row must NOT contain the MouseArea: anchors.fill inside a Row is*/
+                            /* illegal — it collapsed the tap target (Back did nothing) AND*/
+                            /* disrupted the Row's layout (chevron overlapped the title).*/
+                            ~&254494525842443467&~ {
+                                ~&5972374&~: _setBack
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                ~&233748328658231&~: chiplinksDashboard._setActiveSection !== ""
+                                ~&214646099849&~: _setBackRow.~&214646099849&~
+                                ~&7082729686082&~: _setBackRow.~&7082729686082&~
+                                ~&254542236275632405&~: { chiplinksDashboard._setActiveSection = ""; }
+                                ~&197063777&~ {
+                                    ~&5972374&~: _setBackRow
+                                    ~&233744706647566&~: 6
+                                    ~&425121728314878811&~.~&6502767986&~ {
+                                        ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                        ~&7083172477658&~: ~&"3792857133055099087&~
+                                        ~&6504284228&~: ~&7082020628281&~.~&12414259495892754182&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                    }
+                                    ~&425121728314878811&~.~&214594815081&~ {
+                                        ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                        ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&441191467070894161&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                        ~&6504315758&~: chiplinksDashboard._setActiveSection === ""
+                                            ? "" : chiplinksDashboard._setSectionTitle(chiplinksDashboard._setActiveSection)
+                                    }
+                                }
+                            }
+
+                            /* List-view title ("Settings") — only on the master list.*/
+                            ~&425121728314878811&~.~&214594815081&~ {
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                ~&233748328658231&~: chiplinksDashboard._setActiveSection === ""
+                                ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&441191467070894161&~
+                                ~&214622605608&~: ~&"214621299494&~
+                                ~&6504315758&~: ~&6504222003&~(~&"7712198086779994&~)
+                            }
+
+                            /* Reset (this section) — only in detail.*/
+                            ~&254501108490678590&~ {
+                                ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                ~&233748328658231&~: chiplinksDashboard._setActiveSection !== ""
+                                ~&214646099849&~: _setResetLbl.~&12921149980962105220&~ + 28
+                                ~&7082729686082&~: 36
+                                ~&7083116119249&~: 18
+                                ~&214622605608&~: ~&"503220030291830651&~
+                                ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                                ~&7082507052999&~.~&214646099849&~: 2
+                                ~&425121728314878811&~.~&214594815081&~ {
+                                    ~&5972374&~: _setResetLbl
+                                    ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                    ~&6504315758&~: ~&6504222003&~(~&"214602092876&~)
+                                    ~&214622605608&~: ~&"214621299494&~
+                                }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: ChiplinksBackend.resetSettings(chiplinksDashboard._setActiveSection)
+                                }
+                            }
+                        }
+                        ~&254501108490678590&~ {
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _setHeader.~&7082507142622&~
+                                      ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24; ~&254549367831075482&~: 8 }
+                            ~&7082729686082&~: 1; ~&214622605608&~: "#C8C8C8"
+                        }
+
+                        /* ---- MASTER LIST: one tappable row per section ----*/
+                        ~&7081293658967&~ {
+                            ~&5972374&~: _setMasterCol
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _setHeader.~&7082507142622&~
+                                      ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24; ~&254549367831075482&~: 20 }
+                            ~&233748328658231&~: chiplinksDashboard._setActiveSection === ""
+
+                            ~&7712155293725601&~ {
+                                ~&214634455770&~: chiplinksDashboard._setSectionMeta
+                                ~&7712922269353028&~: ~&6502786168&~ {
+                                    ~&5972374&~: _setNavRow
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    ~&214646099849&~: _setMasterCol.~&214646099849&~
+                                    ~&7082729686082&~: 92
+
+                                    ~&7081293658967&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: _setNavChevron.~&6504027668&~
+                                                  ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~; ~&499747351624466981&~: 12 }
+                                        ~&233744706647566&~: 4
+                                        ~&425121728314878811&~.~&214594815081&~ {
+                                            ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&441191467070894161&~
+                                            ~&214622605608&~: ~&"214621299494&~
+                                            ~&6504315758&~: _setNavRow.~&254539508423767444&~.~&214642559243&~
+                                        }
+                                        ~&425121728314878811&~.~&233682147553943&~ {
+                                            ~&214646099849&~: ~&7083038346995&~.~&214646099849&~
+                                            ~&214622605608&~: "#808080"
+                                            ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                            ~&6504315758&~: _setNavRow.~&254539508423767444&~.blurb
+                                        }
+                                    }
+                                    ~&425121728314878811&~.~&6502767986&~ {
+                                        ~&5972374&~: _setNavChevron
+                                        ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                        ~&7083172477658&~: ~&"7714316831646284314&~
+                                        ~&6504284228&~: ~&7082020628281&~.~&12414259495892754182&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                    }
+                                    ~&254501108490678590&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }
+                                        ~&7082729686082&~: 1; ~&214622605608&~: "#C8C8C8"
+                                    }
+                                    ~&254494525842443467&~ {
+                                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                        ~&254542236275632405&~: chiplinksDashboard._setActiveSection = _setNavRow.~&254539508423767444&~.sec
+                                    }
+                                }
+                            }
+                        }
+
+                        /* ---- DETAIL: the active section's rows ----*/
+                        ~&254484537011253254&~ {
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _setHeader.~&7082507142622&~
+                                      ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~
+                                      ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24; ~&254549367831075482&~: 16; ~&15692798426932296956&~: 16 }
+                            ~&233748328658231&~: chiplinksDashboard._setActiveSection !== ""
+                            ~&233726547792244&~: ~&233748328658231&~
+                            ~&3012200093845531741&~: _setDetailCol.~&7082729686082&~ + 40
+                            ~&6503711953&~: ~&6504329801&~
+
+                            ~&7081293658967&~ {
+                                ~&5972374&~: _setDetailCol
+                                ~&214646099849&~: ~&7083038346995&~.~&214646099849&~
+                                ~&233744706647566&~: 4
+
+                                ~&7712155293725601&~ {
+                                    ~&214634455770&~: chiplinksDashboard._setSchemas[chiplinksDashboard._setActiveSection] || []
+                                    /* Native-settings look: ArkControls.Panel = bold label +*/
+                                    /* grey description (from the C++ schema) + the control as*/
+                                    /* `action` on the right — same component the real xochitl*/
+                                    /* Settings screens use (cf. Storage.qml / DisplayVisibleContent).*/
+                                    ~&7712922269353028&~: ~&6502786168&~ {
+                                        ~&5972374&~: _setRow
+                                        required property ~&197102514&~ ~&254539508423767444&~
+                                        readonly property ~&7083178290016&~ rowKey: _setRow.~&254539508423767444&~.~&197090674&~
+                                        readonly property ~&197102514&~    rowVal: _setRow.~&254539508423767444&~.~&214644635174&~
+                                        readonly property ~&6503679477&~    isEnum: _setRow.~&254539508423767444&~.~&6504337259&~ === "enum"
+                                        ~&214646099849&~: _setDetailCol.~&214646099849&~
+                                        ~&7082729686082&~: ~&6502909715&~.~&197092719&~(104, _setRowText.~&2122835675838176157&~ + 40)
+
+                                        /* LEFT: bold label + grey description, vertically centered*/
+                                        /* with the control so they read as one row.*/
+                                        ~&7081293658967&~ {
+                                            ~&5972374&~: _setRowText
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: _setRowCtl.~&6504027668&~
+                                                      ~&499747351624466981&~: 24; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                            ~&233744706647566&~: 4
+                                            ~&425121728314878811&~.~&214594815081&~ {
+                                                ~&214646099849&~: ~&7083038346995&~.~&214646099849&~
+                                                ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&441191467070894161&~
+                                                ~&214622605608&~: ~&"214621299494&~
+                                                ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                                ~&6504315758&~: _setRow.~&254539508423767444&~.~&214632764553&~
+                                            }
+                                            ~&425121728314878811&~.~&233682147553943&~ {
+                                                ~&214646099849&~: ~&7083038346995&~.~&214646099849&~
+                                                ~&214622605608&~: "#808080"
+                                                ~&7713748390489352&~: ~&6503165774&~.~&7712381377343359&~
+                                                ~&6504315758&~: _setRow.~&254539508423767444&~.desc || ""
+                                                ~&233748328658231&~: ~&6504315758&~.~&7082886407723&~ > 0
+                                            }
+                                        }
+
+                                        /* RIGHT: the control, vertically centered on the whole row*/
+                                        /* and pinned to a common right edge across every row.*/
+                                        ~&7081645463424&~ {
+                                            ~&5972374&~: _setRowCtl
+                                            ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                            ~&16021043814775702381&~: _setRow.isEnum ? _setEnumAction : _setNumberAction
+                                        }
+
+                                        /* hairline separator between rows*/
+                                        ~&254501108490678590&~ {
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }
+                                            ~&7082729686082&~: 1; ~&214622605608&~: "#C8C8C8"
+                                        }
+
+                                            /* NUMBER → [-] value [+] (right-aligned action)*/
+                                            property ~&254480451320573660&~ _setNumberAction: ~&254480451320573660&~ {
+                                                ~&197063777&~ {
+                                                    ~&233744706647566&~: 10
+                                                    ~&254501108490678590&~ {
+                                                        ~&214646099849&~: 44; ~&7082729686082&~: 44; ~&7083116119249&~: 22
+                                                        ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                                        ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                                        ~&6503165774&~ { ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~; ~&6504315758&~: ~&"180918&~; ~&6503823200&~.~&254543497768871654&~: 24; ~&6503823200&~.~&6503679370&~: ~&6504329801&~; ~&214622605608&~: ~&"214621299494&~ }
+                                                        ~&254494525842443467&~ {
+                                                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                                            ~&254542236275632405&~: {
+                                                                ~&197102514&~ nv = _setRow.rowVal - _setRow.~&254539508423767444&~.~&6504295525&~;
+                                                                ~&5972376&~ (nv < _setRow.~&254539508423767444&~.~&197092973&~) nv = _setRow.~&254539508423767444&~.~&197092973&~;
+                                                                ~&5972376&~ (_setRow.~&254539508423767444&~.dec === 0) nv = ~&6502909715&~.~&214640404177&~(nv);
+                                                                ChiplinksBackend.setSetting(_setRow.rowKey, "" + nv);
+                                                            }
+                                                        }
+                                                    }
+                                                    ~&6503165774&~ {
+                                                        ~&214646099849&~: 78
+                                                        ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                                        ~&15450610953915458578&~: ~&6503165774&~.~&14019785274593562237&~
+                                                        ~&6504315758&~: ~&7081731278802&~(_setRow.rowVal).~&233745927191932&~(_setRow.~&254539508423767444&~.dec)
+                                                        ~&214622605608&~: ~&"214621299494&~
+                                                        ~&6503823200&~.~&254543497768871654&~: ~&7082020628281&~.~&8015843119099583226&~
+                                                        ~&6503823200&~.~&6503679370&~: ~&6504329801&~
+                                                    }
+                                                    ~&254501108490678590&~ {
+                                                        ~&214646099849&~: 44; ~&7082729686082&~: 44; ~&7083116119249&~: 22
+                                                        ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                                        ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                                        ~&6503165774&~ { ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~; ~&6504315758&~: ~&"180916&~; ~&6503823200&~.~&254543497768871654&~: 24; ~&6503823200&~.~&6503679370&~: ~&6504329801&~; ~&214622605608&~: ~&"214621299494&~ }
+                                                        ~&254494525842443467&~ {
+                                                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                                            ~&254542236275632405&~: {
+                                                                ~&197102514&~ nv = _setRow.rowVal + _setRow.~&254539508423767444&~.~&6504295525&~;
+                                                                ~&5972376&~ (nv > _setRow.~&254539508423767444&~.~&197092719&~) nv = _setRow.~&254539508423767444&~.~&197092719&~;
+                                                                ~&5972376&~ (_setRow.~&254539508423767444&~.dec === 0) nv = ~&6502909715&~.~&214640404177&~(nv);
+                                                                ChiplinksBackend.setSetting(_setRow.rowKey, "" + nv);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            /* ENUM → choice chips (selected chip filled)*/
+                                            property ~&254480451320573660&~ _setEnumAction: ~&254480451320573660&~ {
+                                                ~&197063777&~ {
+                                                    ~&233744706647566&~: 8
+                                                    ~&7712155293725601&~ {
+                                                        ~&214634455770&~: _setRow.~&254539508423767444&~.choices
+                                                        ~&7712922269353028&~: ~&254501108490678590&~ {
+                                                            ~&5972374&~: _setChip
+                                                            required property ~&197102514&~ ~&254539508423767444&~
+                                                            readonly property ~&6503679477&~ _sel: _setChip.~&254539508423767444&~ === _setRow.rowVal
+                                                            ~&7082729686082&~: 44
+                                                            ~&7083116119249&~: 22
+                                                            ~&214646099849&~: _setChipLbl.~&12921149980962105220&~ + 32
+                                                            ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                                            ~&214622605608&~: _sel ? ~&"214621299494&~ : ~&"503220030291830651&~
+                                                            ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                                                            ~&7082507052999&~.~&214646099849&~: 2
+                                                            ~&425121728314878811&~.~&214594815081&~ {
+                                                                ~&5972374&~: _setChipLbl
+                                                                ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                                                ~&6504315758&~: _setChip.~&254539508423767444&~
+                                                                ~&214622605608&~: _setChip._sel ? ~&"214646069354&~ : ~&"214621299494&~
+                                                            }
+                                                            ~&254494525842443467&~ {
+                                                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                                                ~&254542236275632405&~: ChiplinksBackend.setSetting(_setRow.rowKey, _setChip.~&254539508423767444&~)
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    /* ============================ OVERVIEW (section 0) ============================*/
+                    ~&6502786168&~ {
+                        ~&5972374&~: _overviewSection
+                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                        ~&233748328658231&~: chiplinksDashboard.~&233744279141054&~ === 0
+
+                        /* ---- HEADER: section title (left) + Refresh action (right) ----*/
+                        ~&6502786168&~ {
+                            ~&5972374&~: _ovHeader
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~
+                                      ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24; ~&254549367831075482&~: 20 }
+                            ~&7082729686082&~: 52
+
+                            ~&425121728314878811&~.~&214594815081&~ {
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&441191467070894161&~
+                                ~&214622605608&~: ~&"214621299494&~
+                                ~&6504315758&~: ~&6504222003&~("Overview")
+                            }
+                        }
+                        ~&254501108490678590&~ {
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _ovHeader.~&7082507142622&~
+                                      ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24; ~&254549367831075482&~: 8 }
+                            ~&7082729686082&~: 1; ~&214622605608&~: "#C8C8C8"
+                        }
+
+                        /* cheap busy hint while the first stats(5) is in flight*/
+                        ~&425121728314878811&~.~&214594815081&~ {
+                            ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                            ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                            ~&214622605608&~: "#808080"
+                            ~&6504315758&~: ~&6504222003&~("Loading…")
+                            ~&233748328658231&~: chiplinksDashboard._busy && !chiplinksDashboard._statsLoaded
+                        }
+
+                        /* content column (anchored below header; cards + most-linked + footer)*/
+                        ~&7081293658967&~ {
+                            ~&5972374&~: _ovColumn
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _ovHeader.~&7082507142622&~
+                                      ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24; ~&254549367831075482&~: 28 }
+                            ~&233744706647566&~: 28
+                            ~&233748328658231&~: chiplinksDashboard._statsLoaded
+
+                            /* ---- STAT CARDS: data-driven 4-up Grid (8 tiles, 2 rows) ----*/
+                            ~&6502712239&~ {
+                                ~&5972374&~: _ovCards
+                                ~&233724017721034&~: 4
+                                ~&8400036622101322246&~: 20
+                                ~&3009194557570366524&~: 20
+
+                                ~&7712155293725601&~ {
+                                    ~&214634455770&~: chiplinksDashboard._ovCardData(chiplinksDashboard.stats)
+                                    ~&7712922269353028&~: ~&254501108490678590&~ {
+                                        required property ~&197102514&~ ~&254539508423767444&~
+                                        ~&214646099849&~: ~&6502909715&~.~&214626058827&~((_ovColumn.~&214646099849&~ - 3 * 20) / 4)
+                                        ~&7082729686082&~: 132
+                                        ~&214622605608&~: ~&"214646069354&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: ~&7082020628281&~.~&495727993356258788&~
+
+                                        ~&7081293658967&~ {
+                                            ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                            ~&233744706647566&~: 6
+                                            ~&425121728314878811&~.~&214604609771&~ {
+                                                ~&233721384511543&~.~&12826966400293002612&~: ~&7083038346995&~.~&12826966400293002612&~
+                                                ~&6504337259&~: ~&425121728314878811&~.~&214604609771&~.~&233707385651390&~
+                                                ~&214622605608&~: ~&"214621299494&~
+                                                ~&6504315758&~: "" + ~&254539508423767444&~.~&180991&~
+                                            }
+                                            ~&425121728314878811&~.~&233682147553943&~ {
+                                                ~&233721384511543&~.~&12826966400293002612&~: ~&7083038346995&~.~&12826966400293002612&~
+                                                ~&214622605608&~: "#808080"
+                                                ~&6504315758&~: ~&254539508423767444&~.~&180972&~
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            /* ---- "Most linked": static Column + Repeater over topLinked (≤5) ----*/
+                            ~&425121728314878811&~.~&214594815081&~ {
+                                ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&441191467070894161&~
+                                ~&214622605608&~: ~&"214621299494&~
+                                ~&6504315758&~: ~&6504222003&~("Most linked")
+                            }
+
+                            ~&7081293658967&~ {
+                                ~&5972374&~: _ovTopLinked
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~ }
+
+                                ~&7712155293725601&~ {
+                                    ~&214634455770&~: chiplinksDashboard.stats.topLinked || []
+                                    ~&7712922269353028&~: ~&6502786168&~ {
+                                        required property ~&197102514&~ ~&254539508423767444&~
+                                        ~&214646099849&~: _ovTopLinked.~&214646099849&~
+                                        ~&7082729686082&~: 64
+
+                                        ~&425121728314878811&~.~&214594815081&~ {
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                            ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                            ~&214622605608&~: ~&"214621299494&~
+                                            ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                            ~&214646099849&~: ~&7083038346995&~.~&214646099849&~ - _ovCount.~&214646099849&~ - 16
+                                            ~&6504315758&~: ~&254539508423767444&~.~&6504095402&~ || ~&6504222003&~("Untitled")
+                                        }
+                                        ~&425121728314878811&~.~&233682147553943&~ {
+                                            ~&5972374&~: _ovCount
+                                            ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                            ~&214622605608&~: "#808080"
+                                            ~&6504315758&~: (~&254539508423767444&~.links || 0) + ~&6504222003&~(" links")
+                                        }
+                                        ~&254501108490678590&~ {
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }
+                                            ~&7082729686082&~: 1; ~&214622605608&~: "#C8C8C8"
+                                        }
+                                    }
+                                }
+
+                                ~&425121728314878811&~.~&233682147553943&~ {
+                                    ~&233748328658231&~: !(chiplinksDashboard.stats.topLinked && chiplinksDashboard.stats.topLinked.~&7082886407723&~ > 0)
+                                    ~&214622605608&~: "#808080"
+                                    ~&6504315758&~: ~&6504222003&~("No linked documents yet")
+                                }
+                            }
+
+                            /* ---- footer Caption from dbInfo() (cached on stats load) ----*/
+                            ~&425121728314878811&~.~&233682147553943&~ {
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~ }
+                                ~&214622605608&~: "#808080"
+                                ~&7713748390489352&~: ~&6503165774&~.~&7712381377343359&~
+                                ~&6504315758&~: chiplinksDashboard._dbInfoText
+                            }
+                        }
+
+                        /* ---- Reset trigger (destructive; kept separate at the bottom-right) ----*/
+                        ~&425121728314878811&~.~&7081261925573&~ {
+                            ~&5972374&~: _dashResetButton
+                            ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~; ~&499747351624466981&~: 24; ~&15692798426932296956&~: 24 }
+                            ~&6504315758&~: ~&6504222003&~("Reset database")
+                            ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&254547519794454865&~
+                            ~&233726547792244&~: !chiplinksDashboard._busy
+                            ~&254542236275632405&~: _dashResetLoader.~&7082453764421&~ = ~&6504329801&~
+                        }
+                    }
+
+                    /* ============================ GRAPH (section 1) — Obsidian-style static graph ============================*/
+                    ~&6502786168&~ {
+                        ~&5972374&~: _graphSection
+                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                        ~&233748328658231&~: chiplinksDashboard.~&233744279141054&~ === 1
+
+                        /* lazy first-load: fetch + lay out the graph ONCE when Graph is*/
+                        /* first shown. Capture host size for the px mapping, then fire*/
+                        /* graphLayout(60, params) (async -> onGraphLayoutReady).*/
+                        ~&13733777459642361598&~: {
+                            ~&5972376&~ (~&233748328658231&~ && !chiplinksDashboard._graphLoaded && !chiplinksDashboard._busy) {
+                                chiplinksDashboard._graphW = _graphSection.~&214646099849&~;
+                                chiplinksDashboard._graphH = _graphSection.~&7082729686082&~;
+                                chiplinksDashboard._busy = ~&6504329801&~;
+                                ChiplinksBackend.graphLayout(60, chiplinksDashboard._gParams());
+                            }
+                        }
+
+                        /* E-ink ANIMATION mode while the Graph tab is on screen*/
+                        /* (native ScreenModeItem pattern — see dv_state.qmd). It*/
+                        /* inherits _graphSection's EFFECTIVE visibility: section*/
+                        /* switch or dashboard close drops it back to Content.*/
+                        /* Trace: [supermod-anim] log.*/
+                        ~&7081372714662&~.~&10578197394989910333&~ {
+                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                            ~&6504074414&~: ~&7081372714662&~.~&10578197394989910333&~.~&254477590585233257&~
+                            ~&8399878573055752961&~: "supermod-dash-graph-anim"
+                            /* Leaving the Graph tab hands its ghosting to the native*/
+                            /* cleaner (forceClearNow; `ghostBuster` resolves lexically*/
+                            /* to MainView's root property). Dwell-gated: no flash on a*/
+                            /* fleeting tab pass-through.*/
+                            property ~&6504243117&~ _animEnteredAt: 0
+                            ~&13733777459642361598&~: {
+                                ~&5972376&~ (~&233748328658231&~) {
+                                    _animEnteredAt = ~&6502586279&~.now();
+                                    ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod-anim] ENTER animation mode (dashboard graph)");
+                                } ~&6503784146&~ {
+                                    ~&197102514&~ dwell = ~&6502586279&~.now() - _animEnteredAt;
+                                    ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[supermod-anim] EXIT animation mode (dashboard graph) dwell=" + dwell + ~&"5972521&~);
+                                    ~&5972376&~ (_animEnteredAt > 0 && dwell > 600 && ~&482865290967253827&~) {
+                                        ~&482865290967253827&~.~&8021204117616398611&~("supermod dashboard graph closed");
+                                    }
+                                }
+                            }
+                        }
+
+                        /* busy hint while the first graphLayout(60) is in flight*/
+                        ~&425121728314878811&~.~&214594815081&~ {
+                            ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                            ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                            ~&214622605608&~: "#808080"
+                            ~&6504315758&~: ~&6504222003&~("Loading…")
+                            ~&233748328658231&~: chiplinksDashboard._busy && !chiplinksDashboard._graphLoaded
+                        }
+
+                        /* empty-state once loaded with no nodes*/
+                        ~&425121728314878811&~.~&214594815081&~ {
+                            ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                            ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                            ~&214622605608&~: "#808080"
+                            ~&6504315758&~: ~&6504222003&~("No linked documents yet")
+                            ~&233748328658231&~: chiplinksDashboard._graphLoaded
+                                     && (chiplinksDashboard._graphNodes || []).~&7082886407723&~ === 0
+                        }
+
+                        /* "Showing N of M" when the payload was capped*/
+                        ~&425121728314878811&~.~&233682147553943&~ {
+                            ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~; ~&499747351624466981&~: 24; ~&254549367831075482&~: 16 }
+                            ~&214622605608&~: "#808080"
+                            ~&233748328658231&~: !!(chiplinksDashboard.graph && chiplinksDashboard.graph.truncated)
+                            ~&6504315758&~: ~&6504222003&~("Showing %1 of %2")
+                                  .~&197080195&~((chiplinksDashboard._graphNodes || []).~&7082886407723&~)
+                                  .~&197080195&~(chiplinksDashboard.graph.totalDocs || 0)
+                        }
+
+                        /* ---- VIEWPORT: clips the world, catches pan-drag + empty-tap-to-clear ----*/
+                        ~&6502786168&~ {
+                            ~&5972374&~: _graphViewport
+                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                            ~&6503711953&~: ~&6504329801&~
+
+                            /* empty-space tap clears selection; this MouseArea is BEHIND the world,*/
+                            /* so node taps (handled in node delegates) win. drag pans the world.*/
+                            ~&254494525842443467&~ {
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&6503754151&~.~&7083194890448&~: _graphWorld
+                                ~&6503754151&~.~&254549073045156022&~: 6
+                                ~&254542236275632405&~: chiplinksDashboard._clearSelection()
+                            }
+
+                            /* ---- WORLD: built ONCE; pan = x/y (drag), zoom = scale (buttons). ----*/
+                            ~&6502786168&~ {
+                                ~&5972374&~: _graphWorld
+                                ~&214646099849&~: chiplinksDashboard._graphW
+                                ~&7082729686082&~: chiplinksDashboard._graphH
+                                ~&15640708674084664669&~: ~&214625660372&~
+                                transformOrigin: ~&6502786168&~.TopLeft
+                                ~&214641137009&~: chiplinksDashboard.zoomScale   /* discrete; flips at most once per button press*/
+
+                                /* ----- EDGE LAYER: rotated thin Rectangles (no Shapes import) -----*/
+                                ~&7712155293725601&~ {
+                                    ~&214634455770&~: chiplinksDashboard._graphEdges
+                                    ~&7712922269353028&~: ~&254501108490678590&~ {
+                                        required property ~&197102514&~ ~&254539508423767444&~
+                                        ~&15640708674084664669&~: ~&214625660372&~
+                                        /* endpoints resolve via the node-id index; guaranteed present (backend prunes dangling).*/
+                                        property ~&197102514&~ _a: chiplinksDashboard._nodeById(~&254539508423767444&~.~&180988&~)
+                                        property ~&197102514&~ _b: chiplinksDashboard._nodeById(~&254539508423767444&~.~&180989&~)
+                                        /* State carries normalized [0,1] coords; map to world px here.*/
+                                        property ~&6504243117&~ _ax: _a ? _a.~&180993&~ * chiplinksDashboard._graphW : 0
+                                        property ~&6504243117&~ _ay: _a ? _a.~&180994&~ * chiplinksDashboard._graphH : 0
+                                        property ~&6504243117&~ _bx: _b ? _b.~&180993&~ * chiplinksDashboard._graphW : 0
+                                        property ~&6504243117&~ _by: _b ? _b.~&180994&~ * chiplinksDashboard._graphH : 0
+                                        /* "active" iff this edge touches the selected node (O(1), no loop)*/
+                                        property ~&6503679477&~ _active: chiplinksDashboard._selectedId !== ""
+                                                               && (~&254539508423767444&~.~&180988&~ === chiplinksDashboard._selectedId
+                                                                   || ~&254539508423767444&~.~&180989&~ === chiplinksDashboard._selectedId)
+                                        ~&233748328658231&~: _a !== ~&6504117156&~ && _b !== ~&6504117156&~
+                                        ~&180993&~: _ax
+                                        ~&180994&~: _ay
+                                        ~&214646099849&~: ~&6502909715&~.~&6504292691&~((_bx - _ax) * (_bx - _ax) + (_by - _ay) * (_by - _ay))
+                                        ~&7082729686082&~: _active ? (chiplinksDashboard._gEdgeWidth + 1) : chiplinksDashboard._gEdgeWidth
+                                        transformOrigin: ~&6502786168&~.~&6502877684&~
+                                        ~&7713532151049593&~: ~&6502909715&~.~&214620401375&~(_by - _ay, _bx - _ax) * 180 / ~&6502909715&~.~&5971522&~
+                                        /* dim non-active edges when a selection exists*/
+                                        ~&214622605608&~: chiplinksDashboard._selectedId === "" ? "#808080"
+                                               : (_active ? ~&"214621299494&~ : "#C8C8C8")
+                                    }
+                                }
+
+                                /* ----- NODE LAYER: filled circles via radius + label + tap -----*/
+                                ~&7712155293725601&~ {
+                                    ~&214634455770&~: chiplinksDashboard._graphNodes
+                                    ~&7712922269353028&~: ~&6502786168&~ {
+                                        required property ~&197102514&~ ~&254539508423767444&~
+                                        /* degree->radius, clamped so a hub can't dominate, then*/
+                                        /* scaled by the user's Node-size setting.*/
+                                        property ~&6504243117&~ _r: ~&6502909715&~.~&197092973&~(34, 9 + 5 * ~&6502909715&~.~&6504292691&~(~&254539508423767444&~.degree || 0)) * chiplinksDashboard._gNodeSize
+                                        /* membership tests against the cached neighbour set (O(1))*/
+                                        property ~&6503679477&~ _isSel: ~&254539508423767444&~.~&5972374&~ === chiplinksDashboard._selectedId
+                                        property ~&6503679477&~ _isNbr: chiplinksDashboard._selectedId !== ""
+                                                              && chiplinksDashboard._nbr[~&254539508423767444&~.~&5972374&~] === ~&6504329801&~
+                                        property ~&6503679477&~ _dim:   chiplinksDashboard._selectedId !== "" && !_isNbr && !_isSel
+                                        ~&180993&~: (~&254539508423767444&~.~&180993&~ || 0) * chiplinksDashboard._graphW - _r
+                                        ~&180994&~: (~&254539508423767444&~.~&180994&~ || 0) * chiplinksDashboard._graphH - _r
+                                        ~&214646099849&~: 2 * _r
+                                        ~&7082729686082&~: 2 * _r
+
+                                        ~&254501108490678590&~ {
+                                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                            ~&15640708674084664669&~: ~&214625660372&~
+                                            ~&7083116119249&~: ~&214646099849&~ / 2                       /* -> circle*/
+                                            ~&214622605608&~: ~&7083038346995&~._isSel ? ~&"214621299494&~ : ~&"214646069354&~
+                                            ~&7082507052999&~.~&214646099849&~: ~&7083038346995&~._isSel ? 3 : 2
+                                            ~&7082507052999&~.~&214622605608&~: ~&7083038346995&~._dim ? "#C8C8C8" : ~&"214621299494&~
+                                        }
+
+                                        /* Obsidian-like label: counter-scaled to stay legible, hidden when*/
+                                        /* zoomed far out or when dimmed by a selection elsewhere.*/
+                                        ~&6503165774&~ {
+                                            ~&233721384511543&~.~&12826966400293002612&~: ~&7083038346995&~.~&12826966400293002612&~
+                                            ~&233721384511543&~.~&197100796&~: ~&7083038346995&~.~&7082507142622&~
+                                            ~&233721384511543&~.~&254549367831075482&~: 3
+                                            ~&15640708674084664669&~: ~&214625660372&~
+                                            ~&214646099849&~: 120
+                                            ~&6503823200&~.~&254543497768871654&~: 18
+                                            ~&15450610953915458578&~: ~&6503165774&~.~&14019785274593562237&~
+                                            ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                            ~&214622605608&~: ~&7083038346995&~._dim ? "#C8C8C8" : ~&"214621299494&~
+                                            ~&6504315758&~: ~&254539508423767444&~.~&6504095402&~ || ~&6504222003&~("Untitled")
+                                            transformOrigin: ~&6502786168&~.~&197065948&~
+                                            ~&214641137009&~: 1 / chiplinksDashboard.zoomScale
+                                            ~&233748328658231&~: !~&7083038346995&~._dim && chiplinksDashboard.zoomScale >= chiplinksDashboard._gLabelFade
+                                        }
+
+                                        /* tap a node -> select + cache neighbours (wins over viewport drag/clear)*/
+                                        ~&254494525842443467&~ {
+                                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                            ~&254542236275632405&~: chiplinksDashboard._selectNode(~&254539508423767444&~.~&5972374&~)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        /* ---- DISCRETE ZOOM CONTROLS (bottom-left; bottom-right reserved for Open) ----*/
+                        ~&7081293658967&~ {
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~; ~&8399743405844438450&~: 24; ~&15692798426932296956&~: 24 }
+                            ~&233744706647566&~: 12
+                            ~&425121728314878811&~.~&7081261925573&~ {
+                                ~&6504315758&~: ~&6504222003&~(~&"180916&~)
+                                ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&254547519794454865&~
+                                ~&233726547792244&~: chiplinksDashboard._zoomIndex < chiplinksDashboard.zoomSteps.~&7082886407723&~ - 1
+                                ~&254542236275632405&~: chiplinksDashboard._zoomIn()
+                            }
+                            ~&425121728314878811&~.~&7081261925573&~ {
+                                ~&6504315758&~: ~&6504222003&~(~&"180918&~)
+                                ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&254547519794454865&~
+                                ~&233726547792244&~: chiplinksDashboard._zoomIndex > 0
+                                ~&254542236275632405&~: chiplinksDashboard._zoomOut()
+                            }
+                        }
+
+                        /* ---- OPEN: deliberate navigate (single tap selects; this press opens) ----*/
+                        ~&425121728314878811&~.~&7081261925573&~ {
+                            ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~; ~&499747351624466981&~: 24; ~&15692798426932296956&~: 24 }
+                            ~&6504315758&~: ~&6504222003&~(~&"6502997435&~)
+                            ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&254547519794454865&~
+                            ~&233726547792244&~: chiplinksDashboard._selectedId !== "" && !chiplinksDashboard._busy
+                            ~&254542236275632405&~: chiplinksDashboard._openGraphNode(chiplinksDashboard._selectedId)
+                        }
+
+                        /* ---- SETTINGS: toggle button (top-left) + foldout panel ----*/
+                        ~&425121728314878811&~.~&7081261925573&~ {
+                            ~&5972374&~: _gSettingsBtn
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~; ~&8399743405844438450&~: 24; ~&254549367831075482&~: 16 }
+                            ~&6504315758&~: ~&6504222003&~(~&"7712198086779994&~)
+                            ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&254547519794454865&~
+                            ~&254542236275632405&~: chiplinksDashboard._gSettingsOpen = !chiplinksDashboard._gSettingsOpen
+                        }
+
+                        ~&254501108490678590&~ {
+                            ~&5972374&~: _gSettingsPanel
+                            ~&233748328658231&~: chiplinksDashboard._gSettingsOpen
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&197100796&~: _gSettingsBtn.~&7082507142622&~; ~&8399743405844438450&~: 24; ~&254549367831075482&~: 8 }
+                            ~&214646099849&~: 360
+                            ~&7082729686082&~: _gSettingsCol.~&2122835675838176157&~ + 24
+                            ~&214622605608&~: ~&"214646069354&~
+                            ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                            ~&7082507052999&~.~&214646099849&~: 2
+                            ~&7083116119249&~: 10
+                            ~&180995&~: 50
+
+                            ~&7081293658967&~ {
+                                ~&5972374&~: _gSettingsCol
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~; ~&233736391113274&~: 12 }
+                                ~&233744706647566&~: 8
+
+                                ~&7712155293725601&~ {
+                                    ~&214634455770&~: chiplinksDashboard._gParamDefs
+                                    ~&7712922269353028&~: ~&6502786168&~ {
+                                        required property ~&197102514&~ ~&254539508423767444&~
+                                        ~&214646099849&~: _gSettingsCol.~&214646099849&~
+                                        ~&7082729686082&~: 40
+
+                                        ~&425121728314878811&~.~&214594815081&~ {
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                            ~&214646099849&~: 150
+                                            ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                            ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                            ~&214622605608&~: ~&"214621299494&~
+                                            ~&6504315758&~: ~&254539508423767444&~.~&214632764553&~
+                                        }
+
+                                        ~&197063777&~ {
+                                            ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                            ~&233744706647566&~: 8
+
+                                            ~&254501108490678590&~ {
+                                                ~&214646099849&~: 34; ~&7082729686082&~: 34; ~&7083116119249&~: 17
+                                                ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                                ~&6503165774&~ { ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~; ~&6504315758&~: ~&"180918&~; ~&6503823200&~.~&254543497768871654&~: 20; ~&6503823200&~.~&6503679370&~: ~&6504329801&~; ~&214622605608&~: ~&"214621299494&~ }
+                                                ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._gStep(~&254539508423767444&~.~&197090674&~, -1) }
+                                            }
+                                            ~&425121728314878811&~.~&214594815081&~ {
+                                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                                ~&214646099849&~: 46
+                                                ~&15450610953915458578&~: ~&6503165774&~.~&14019785274593562237&~
+                                                ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                                ~&214622605608&~: ~&"214621299494&~
+                                                /* comma-read _gTick so the value re-reads after a bracket-set*/
+                                                ~&6504315758&~: (chiplinksDashboard._gTick, chiplinksDashboard._gFmt(~&254539508423767444&~.~&197090674&~))
+                                            }
+                                            ~&254501108490678590&~ {
+                                                ~&214646099849&~: 34; ~&7082729686082&~: 34; ~&7083116119249&~: 17
+                                                ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                                ~&6503165774&~ { ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~; ~&6504315758&~: ~&"180916&~; ~&6503823200&~.~&254543497768871654&~: 20; ~&6503823200&~.~&6503679370&~: ~&6504329801&~; ~&214622605608&~: ~&"214621299494&~ }
+                                                ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._gStep(~&254539508423767444&~.~&197090674&~, 1) }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                ~&254501108490678590&~ { ~&214646099849&~: _gSettingsCol.~&214646099849&~; ~&7082729686082&~: 1; ~&214622605608&~: "#808080" }
+
+                                ~&425121728314878811&~.~&7081261925573&~ {
+                                    ~&6504315758&~: ~&6504222003&~("Reset defaults")
+                                    ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&254547519794454865&~
+                                    ~&254542236275632405&~: chiplinksDashboard._gReset()
+                                }
+                            }
+                        }
+                    }
+
+                    /* ============================ BROWSE (section 2) ============================*/
+                    ~&6502786168&~ {
+                        ~&5972374&~: _browseSection
+                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                        ~&233748328658231&~: chiplinksDashboard.~&233744279141054&~ === 2
+
+                        /* lazy first-load: load Docs once when Browse is first shown*/
+                        ~&13733777459642361598&~: {
+                            ~&5972376&~ (~&233748328658231&~ && !chiplinksDashboard._browseEntered && !chiplinksDashboard._busy) {
+                                chiplinksDashboard._browseEntered = ~&6504329801&~;
+                                chiplinksDashboard._loadBrowseDocs();
+                            }
+                        }
+
+                        /* --- ENTITY CHIP ROW ---*/
+                        ~&197063777&~ {
+                            ~&5972374&~: _browseChips
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~; ~&8399743405844438450&~: 24; ~&254549367831075482&~: 16 }
+                            ~&233744706647566&~: 12
+
+                            ~&7712155293725601&~ {
+                                ~&214634455770&~: [~&6504222003&~("Docs"), ~&6504222003&~("Links"), ~&6504222003&~("ToC"), ~&6504222003&~("Pins"), ~&6504222003&~("Recents"), ~&6504222003&~("Post-its")]
+                                ~&7712922269353028&~: ~&254501108490678590&~ {
+                                    required property ~&197088788&~ ~&214629676161&~
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    ~&214646099849&~: _chipLabel.~&12921149980962105220&~ + 32
+                                    ~&7082729686082&~: 40
+                                    ~&7083116119249&~: 20
+                                    ~&214622605608&~: chiplinksDashboard.browseEntity === ~&214629676161&~ ? ~&"214621299494&~ : ~&"214646069354&~
+                                    ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                                    ~&7082507052999&~.~&214646099849&~: 2
+
+                                    ~&425121728314878811&~.~&214594815081&~ {
+                                        ~&5972374&~: _chipLabel
+                                        ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                        ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                        ~&6504315758&~: ~&254539508423767444&~
+                                        ~&214622605608&~: chiplinksDashboard.browseEntity === ~&214629676161&~ ? ~&"214646069354&~ : ~&"214621299494&~
+                                    }
+                                    ~&254494525842443467&~ {
+                                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                        ~&254542236275632405&~: chiplinksDashboard._browseSelect(~&214629676161&~)
+                                    }
+                                }
+                            }
+                        }
+
+                        ~&254501108490678590&~ {
+                            ~&5972374&~: _browseChipDivider
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _browseChips.~&7082507142622&~; ~&254549367831075482&~: 12 }
+                            ~&7082729686082&~: 1
+                            ~&214622605608&~: "#808080"
+                        }
+
+                        /* shared anchored frame for the five ListViews*/
+                        ~&6502786168&~ {
+                            ~&5972374&~: _browseListHost
+                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _browseChipDivider.~&7082507142622&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }
+
+                            /* ---- 0: DOCS (global) — tap drills into ToC; ⓘ inspects ----*/
+                            ~&7711904883727328&~ {
+                                ~&5972374&~: _docsList
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&233748328658231&~: chiplinksDashboard.browseEntity === 0
+                                ~&6503711953&~: ~&6504329801&~
+                                ~&8400022513646884015&~: ~&6504329801&~
+                                ~&476396729556588759&~: ~&6502909715&~.~&197092719&~(0, ~&7082729686082&~ * 2)
+                                ~&214634455770&~: chiplinksDashboard.browseDocs || []
+                                ~&7712922269353028&~: ~&6502786168&~ {
+                                    ~&214646099849&~: ~&7711904883727328&~.~&6504391364&~.~&214646099849&~
+                                    ~&7082729686082&~: 82
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    ~&425121728314878811&~.~&214594815081&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24; ~&197100796&~: ~&7083038346995&~.~&197100796&~; ~&254549367831075482&~: 12 }
+                                        ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                        ~&6504315758&~: ~&254539508423767444&~.~&6504095402&~ || ~&6504222003&~("Untitled")
+                                    }
+                                    ~&425121728314878811&~.~&233682147553943&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~; ~&15692798426932296956&~: 5 }
+                                        ~&214622605608&~: '#757474'
+                                        ~&6504315758&~: ~&6504222003&~("doc · tap to open ToC")
+                                    }
+                                    ~&254501108490678590&~ { ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }; ~&7082729686082&~: 1; ~&214622605608&~: "#808080" }
+                                    ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._drillToc(~&254539508423767444&~.~&5972374&~) }
+                                    ~&425121728314878811&~.~&6502767986&~ {
+                                        ~&5972374&~: _docInspect
+                                        ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&499747351624466981&~: 24; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                        ~&7083172477658&~: ~&"13987346296694310791&~
+                                        ~&6504284228&~: ~&7082020628281&~.~&3842193742606557678&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                    }
+                                    ~&254494525842443467&~ {
+                                        ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                        ~&214646099849&~: 64; ~&7082729686082&~: 64
+                                        ~&254542236275632405&~: chiplinksDashboard._inspect(0, ~&254539508423767444&~)
+                                    }
+                                }
+                            }
+
+                            /* ---- 1: LINKS (global) — tap drills into Pins ----*/
+                            ~&7711904883727328&~ {
+                                ~&5972374&~: _linksList
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&233748328658231&~: chiplinksDashboard.browseEntity === 1
+                                ~&6503711953&~: ~&6504329801&~
+                                ~&8400022513646884015&~: ~&6504329801&~
+                                ~&476396729556588759&~: ~&6502909715&~.~&197092719&~(0, ~&7082729686082&~ * 2)
+                                ~&214634455770&~: chiplinksDashboard.browseLinks || []
+                                ~&7712922269353028&~: ~&6502786168&~ {
+                                    ~&214646099849&~: ~&7711904883727328&~.~&6504391364&~.~&214646099849&~
+                                    ~&7082729686082&~: 72
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    ~&425121728314878811&~.~&214594815081&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24; ~&197100796&~: ~&7083038346995&~.~&197100796&~; ~&254549367831075482&~: 12 }
+                                        ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                        ~&6504315758&~: ~&254539508423767444&~.~&6504095402&~ || ~&6504222003&~("Untitled link")
+                                    }
+                                    ~&425121728314878811&~.~&233682147553943&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24; ~&214640173127&~: _linkInspectMA.~&6504027668&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~; ~&15692798426932296956&~: 10 }
+                                        ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                        ~&214622605608&~: "#808080"
+                                        /* target_doc_name is invalid QVariant for dangling targets → guard*/
+                                        ~&6504315758&~: (~&254539508423767444&~.source_doc_name || ~&6504222003&~("?")) + ~&6504222003&~(" → ") + (~&254539508423767444&~.target_doc_name || ~&6504222003&~("(missing)"))
+                                    }
+                                    ~&254501108490678590&~ { ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }; ~&7082729686082&~: 1; ~&214622605608&~: "#808080" }
+                                    ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._drillPins(~&254539508423767444&~.~&5972374&~) }
+                                    ~&425121728314878811&~.~&6502767986&~ {
+                                        ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&499747351624466981&~: 24; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                        ~&7083172477658&~: ~&"13987346296694310791&~; ~&6504284228&~: ~&7082020628281&~.~&3842193742606557678&~; ~&214622605608&~: ~&"214621299494&~
+                                    }
+                                    ~&254494525842443467&~ {
+                                        ~&5972374&~: _linkInspectMA
+                                        ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                        ~&214646099849&~: 64; ~&7082729686082&~: 64
+                                        ~&254542236275632405&~: chiplinksDashboard._inspect(1, ~&254539508423767444&~)
+                                    }
+                                }
+                            }
+
+                            /* ---- 2: ToC (drill-down from a tapped Doc) ----*/
+                            ~&7711904883727328&~ {
+                                ~&5972374&~: _tocList
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&233748328658231&~: chiplinksDashboard.browseEntity === 2
+                                ~&6503711953&~: ~&6504329801&~
+                                ~&8400022513646884015&~: ~&6504329801&~
+                                ~&476396729556588759&~: ~&6502909715&~.~&197092719&~(0, ~&7082729686082&~ * 2)
+                                ~&214634455770&~: chiplinksDashboard.browseToc || []
+                                ~&7712922269353028&~: ~&6502786168&~ {
+                                    ~&214646099849&~: ~&7711904883727328&~.~&6504391364&~.~&214646099849&~
+                                    ~&7082729686082&~: 64
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    ~&425121728314878811&~.~&214594815081&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24 + (~&254539508423767444&~.~&214632930081&~ || 0) * 18; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&499747351624466981&~: 24 }
+                                        ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                        ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                        ~&6504315758&~: ~&254539508423767444&~.~&6504095402&~ || ~&6504222003&~("(untitled)")
+                                    }
+                                    ~&254501108490678590&~ { ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }; ~&7082729686082&~: 1; ~&214622605608&~: "#808080" }
+                                    ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._inspect(2, ~&254539508423767444&~) }
+                                }
+                            }
+
+                            /* ---- 3: Pins (drill-down from a tapped Link) ----*/
+                            ~&7711904883727328&~ {
+                                ~&5972374&~: _pinsList
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&233748328658231&~: chiplinksDashboard.browseEntity === 3
+                                ~&6503711953&~: ~&6504329801&~
+                                ~&8400022513646884015&~: ~&6504329801&~
+                                ~&476396729556588759&~: ~&6502909715&~.~&197092719&~(0, ~&7082729686082&~ * 2)
+                                ~&214634455770&~: chiplinksDashboard.browsePins || []
+                                ~&7712922269353028&~: ~&6502786168&~ {
+                                    ~&214646099849&~: ~&7711904883727328&~.~&6504391364&~.~&214646099849&~
+                                    ~&7082729686082&~: 64
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    ~&425121728314878811&~.~&214594815081&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                        ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                        ~&6504315758&~: ~&6504222003&~(~&"233698925343196&~).~&197080195&~((~&254539508423767444&~.source_page || 0) + 1)
+                                    }
+                                    ~&425121728314878811&~.~&233682147553943&~ {
+                                        ~&233721384511543&~ { ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&499747351624466981&~: 24; ~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~ }
+                                        ~&214622605608&~: "#808080"
+                                        ~&6504315758&~: ~&6504222003&~("x %1 · y %2").~&197080195&~(~&6502909715&~.~&214640404177&~(~&254539508423767444&~.~&180993&~ || 0)).~&197080195&~(~&6502909715&~.~&214640404177&~(~&254539508423767444&~.~&180994&~ || 0))
+                                    }
+                                    ~&254501108490678590&~ { ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }; ~&7082729686082&~: 1; ~&214622605608&~: "#808080" }
+                                    ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._inspect(3, ~&254539508423767444&~) }
+                                }
+                            }
+
+                            /* ---- 4: Recents (global) ----*/
+                            ~&7711904883727328&~ {
+                                ~&5972374&~: _recentsList
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&233748328658231&~: chiplinksDashboard.browseEntity === 4
+                                ~&6503711953&~: ~&6504329801&~
+                                ~&8400022513646884015&~: ~&6504329801&~
+                                ~&476396729556588759&~: ~&6502909715&~.~&197092719&~(0, ~&7082729686082&~ * 2)
+                                ~&214634455770&~: chiplinksDashboard.browseRecents || []
+                                ~&7712922269353028&~: ~&6502786168&~ {
+                                    ~&214646099849&~: ~&7711904883727328&~.~&6504391364&~.~&214646099849&~
+                                    ~&7082729686082&~: 72
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    ~&425121728314878811&~.~&214594815081&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24; ~&197100796&~: ~&7083038346995&~.~&197100796&~; ~&254549367831075482&~: 12 }
+                                        ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                        ~&214622605608&~: ~&"214621299494&~
+                                        ~&6504315758&~: ~&254539508423767444&~.target_doc_name || ~&6504222003&~("Untitled")
+                                    }
+                                    ~&425121728314878811&~.~&233682147553943&~ {
+                                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&8399743405844438450&~: 24; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~; ~&15692798426932296956&~: 10 }
+                                        ~&214622605608&~: "#808080"
+                                        ~&6504315758&~: ~&6504222003&~("used %1×").~&197080195&~(~&254539508423767444&~.use_count || 0)
+                                    }
+                                    ~&254501108490678590&~ { ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~ }; ~&7082729686082&~: 1; ~&214622605608&~: "#808080" }
+                                    ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._inspect(4, ~&254539508423767444&~) }
+                                }
+                            }
+
+                            /* ---- 5: Post-its (global) — GRID of large preview cards ----*/
+                            ~&7711703004395498&~ {
+                                ~&5972374&~: _postitsGrid
+                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                ~&233721384511543&~.~&233736391113274&~: 16
+                                ~&233748328658231&~: chiplinksDashboard.browseEntity === 5
+                                ~&6503711953&~: ~&6504329801&~
+                                ~&8400022513646884015&~: ~&6504329801&~
+                                ~&476396729556588759&~: ~&6502909715&~.~&197092719&~(0, ~&7082729686082&~ * 2)
+                                ~&254525028735275369&~: 284
+                                ~&8399325947672478242&~: 340
+                                ~&214634455770&~: chiplinksDashboard.browsePostits || []
+                                ~&7712922269353028&~: ~&6502786168&~ {
+                                    ~&214646099849&~: _postitsGrid.~&254525028735275369&~
+                                    ~&7082729686082&~: _postitsGrid.~&8399325947672478242&~
+                                    required property ~&197102514&~ ~&254539508423767444&~
+                                    /* Resolve the scratch + host wrappers ONCE per delegate*/
+                                    /* (in-memory Library lookup, not a DB query).*/
+                                    readonly property ~&197102514&~ _sWrap: ~&254539508423767444&~.scratch_doc_id ? ~&233694067165438&~.~&8399431778896295215&~(~&254539508423767444&~.scratch_doc_id) : ~&6504117156&~
+                                    readonly property ~&197102514&~ _hWrap: ~&254539508423767444&~.host_doc_id ? ~&233694067165438&~.~&8399431778896295215&~(~&254539508423767444&~.host_doc_id) : ~&6504117156&~
+                                    readonly property ~&197088788&~ _sIdx: (_sWrap && ~&254539508423767444&~.scratch_page) ? _sWrap.~&254543134822321786&~(~&254539508423767444&~.scratch_page) : -1
+
+                                    ~&254501108490678590&~ {
+                                        ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                        ~&233721384511543&~.~&233736391113274&~: 8
+                                        ~&214622605608&~: ~&"214646069354&~
+                                        ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                                        ~&7082507052999&~.~&214646099849&~: 2
+                                        ~&7083116119249&~: 8
+                                        ~&6503711953&~: ~&6504329801&~
+
+                                        ~&254501108490678590&~ {
+                                            ~&5972374&~: _piGridThumbFrame
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~ }
+                                            ~&233721384511543&~.~&233736391113274&~: 6
+                                            ~&7082729686082&~: 210
+                                            ~&214622605608&~: ~&"214646069354&~
+                                            ~&7082507052999&~.~&214622605608&~: "#808080"
+                                            ~&7082507052999&~.~&214646099849&~: 1
+                                            ~&6503711953&~: ~&6504329801&~
+                                            ~&7496756578881789802&~ {
+                                                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                                ~&233721384511543&~.~&233736391113274&~: 1
+                                                ~&233748328658231&~: _sIdx >= 0 && !!_sWrap
+                                                ~&7712934851008712&~: _sWrap
+                                                ~&6504167078&~: _sIdx >= 0 ? _sIdx : 0
+                                                ~&8399804216774515712&~: ~&6504329801&~
+                                                ~&7713012679492661&~: ~&214591687532&~.~&13563680926116790904&~
+                                            }
+                                            ~&425121728314878811&~.~&6502767986&~ {
+                                                ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                                ~&233748328658231&~: !(_sIdx >= 0 && !!_sWrap)
+                                                ~&7083172477658&~: ~&"15094524446771932550&~
+                                                ~&6504284228&~: 40
+                                                ~&214622605608&~: "#808080"
+                                            }
+                                        }
+                                        ~&425121728314878811&~.~&214594815081&~ {
+                                            ~&5972374&~: _piGridTitle
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _piGridThumbFrame.~&7082507142622&~; ~&254549367831075482&~: 8; ~&8399743405844438450&~: 10; ~&499747351624466981&~: 10 }
+                                            ~&6504337259&~: ~&425121728314878811&~.~&214594815081&~.~&7081672853386&~
+                                            ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                            ~&214622605608&~: ~&"214621299494&~
+                                            ~&6504315758&~: (~&254539508423767444&~.~&214642559243&~ && ~&254539508423767444&~.~&214642559243&~.~&7082886407723&~ > 0) ? ~&254539508423767444&~.~&214642559243&~ : ~&6504222003&~("Post-it")
+                                        }
+                                        ~&425121728314878811&~.~&233682147553943&~ {
+                                            ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _piGridTitle.~&7082507142622&~; ~&254549367831075482&~: 2; ~&8399743405844438450&~: 10; ~&499747351624466981&~: 10 }
+                                            ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                            ~&214622605608&~: "#808080"
+                                            ~&6504315758&~: ~&6504222003&~("on %1 · p%2")
+                                                  .~&197080195&~((_hWrap && _hWrap.~&505890565057603928&~) ? _hWrap.~&505890565057603928&~ : ~&6504222003&~("(unknown)"))
+                                                  .~&197080195&~((~&254539508423767444&~.host_page || 0) + 1)
+                                        }
+                                        ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~; ~&254542236275632405&~: chiplinksDashboard._inspect(5, ~&254539508423767444&~) }
+                                    }
+                                }
+                            }
+
+                            /* ---- EMPTY-STATE for drill lists before drilling in ----*/
+                            ~&425121728314878811&~.~&214594815081&~ {
+                                ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                ~&214622605608&~: "#808080"
+                                ~&233748328658231&~: (chiplinksDashboard.browseEntity === 2 && (chiplinksDashboard.browseToc || []).~&7082886407723&~ === 0)
+                                      || (chiplinksDashboard.browseEntity === 3 && (chiplinksDashboard.browsePins || []).~&7082886407723&~ === 0)
+                                ~&6504315758&~: chiplinksDashboard.browseEntity === 2
+                                    ? ~&6504222003&~("Tap a doc in Docs to see its ToC")
+                                    : ~&6504222003&~("Tap a link in Links to see its pins")
+                            }
+                        }
+
+                        /* --- READ-ONLY INSPECT PANEL (slides over the list; tap-swallow) ---*/
+                        ~&254501108490678590&~ {
+                            ~&5972374&~: _inspectPanel
+                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                            ~&214622605608&~: ~&"214646069354&~
+                            ~&233748328658231&~: chiplinksDashboard._inspectOpen
+                            ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~ }   /* swallow taps to the list under it*/
+
+                            ~&425121728314878811&~.~&4184163301694413582&~ {
+                                ~&5972374&~: _inspectHeader
+                                ~&7646428260611756892&~: ~&425121728314878811&~.~&4184163301694413582&~.~&7081254720423&~.~&7081254810046&~
+                                ~&214642559243&~: ~&6504222003&~(~&"233683599624271&~)
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~ }
+                                ~&425121728314878811&~.~&4184163301694413582&~.~&7081261925573&~ {
+                                    ~&8399601734642709923&~: ~&"3792857133055099087&~
+                                    ~&6504315758&~: ~&6504222003&~(~&"6502513850&~)
+                                    ~&254542236275632405&~: chiplinksDashboard._inspectOpen = ~&214625660372&~
+                                }
+                            }
+
+                            ~&7081293658967&~ {
+                                ~&5972374&~: _inspectBody
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _inspectHeader.~&7082507142622&~; ~&254549367831075482&~: 24; ~&8399743405844438450&~: 24; ~&499747351624466981&~: 24 }
+                                ~&233744706647566&~: 10
+                                ~&425121728314878811&~.~&214604609771&~ {
+                                    ~&6504337259&~: ~&425121728314878811&~.~&214604609771&~.~&214594832564&~
+                                    ~&214622605608&~: ~&"214621299494&~
+                                    ~&214646099849&~: ~&7083038346995&~.~&214646099849&~
+                                    ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                                    ~&6504315758&~: chiplinksDashboard._inspectKind === 0 ? (chiplinksDashboard._inspectRow.~&6504095402&~ || ~&6504222003&~("Untitled"))
+                                        : chiplinksDashboard._inspectKind === 1 ? (chiplinksDashboard._inspectRow.~&6504095402&~ || ~&6504222003&~("Untitled link"))
+                                        : chiplinksDashboard._inspectKind === 2 ? (chiplinksDashboard._inspectRow.~&6504095402&~ || ~&6504222003&~("(untitled)"))
+                                        : chiplinksDashboard._inspectKind === 3 ? ~&6504222003&~("Pin")
+                                        : chiplinksDashboard._inspectKind === 5 ? ((chiplinksDashboard._inspectRow.~&214642559243&~ && chiplinksDashboard._inspectRow.~&214642559243&~.~&7082886407723&~ > 0) ? chiplinksDashboard._inspectRow.~&214642559243&~ : ~&6504222003&~("Post-it"))
+                                        : (chiplinksDashboard._inspectRow.target_doc_name || ~&6504222003&~(~&"7081868489834&~))
+                                }
+                                ~&425121728314878811&~.~&6502529143&~ {
+                                    ~&6504337259&~: ~&425121728314878811&~.~&6502529143&~.~&214603546914&~
+                                    ~&214622605608&~: "#808080"
+                                    ~&214646099849&~: ~&7083038346995&~.~&214646099849&~
+                                    ~&7713748390489352&~: ~&6503165774&~.~&14850695727101080796&~
+                                    ~&6504315758&~: chiplinksDashboard._inspectKind === 0 ? ~&6504222003&~("id: %1\nparent: %2").~&197080195&~(chiplinksDashboard._inspectRow.~&5972374&~ || "—").~&197080195&~(chiplinksDashboard._inspectRow.~&254543149076066335&~ || "—")
+                                        : chiplinksDashboard._inspectKind === 1 ? ~&6504222003&~("%1 → %2\npage: %3").~&197080195&~(chiplinksDashboard._inspectRow.source_doc_name || "?").~&197080195&~(chiplinksDashboard._inspectRow.target_doc_name || ~&6504222003&~("(missing)")).~&197080195&~(chiplinksDashboard._inspectRow.target_page_key || "—")
+                                        : chiplinksDashboard._inspectKind === 2 ? ~&6504222003&~("level: %1\npage: %2").~&197080195&~(chiplinksDashboard._inspectRow.~&214632930081&~ || 0).~&197080195&~(chiplinksDashboard._inspectRow.page_key || "—")
+                                        : chiplinksDashboard._inspectKind === 3 ? ~&6504222003&~("link: %1\npage: %2\nx %3 · y %4").~&197080195&~(chiplinksDashboard._inspectRow.link_id || "—").~&197080195&~((chiplinksDashboard._inspectRow.source_page || 0) + 1).~&197080195&~(~&6502909715&~.~&214640404177&~(chiplinksDashboard._inspectRow.~&180993&~ || 0)).~&197080195&~(~&6502909715&~.~&214640404177&~(chiplinksDashboard._inspectRow.~&180994&~ || 0))
+                                        : chiplinksDashboard._inspectKind === 5 ? ~&6504222003&~("host: %1\nhost page: %2\nscratch page: %3").~&197080195&~(chiplinksDashboard._inspectRow.host_doc_id || "—").~&197080195&~((chiplinksDashboard._inspectRow.host_page || 0) + 1).~&197080195&~(chiplinksDashboard._inspectRow.scratch_page || "—")
+                                        : ~&6504222003&~("page: %1\nused %2×").~&197080195&~(chiplinksDashboard._inspectRow.target_page_key || "—").~&197080195&~(chiplinksDashboard._inspectRow.use_count || 0)
+                                }
+                            }
+
+                            ~&425121728314878811&~.~&7081261925573&~ {
+                                ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~; ~&233736391113274&~: 24 }
+                                ~&6504337259&~: ~&254477762679831355&~.~&7081261925573&~.~&9779790476658108977&~
+                                ~&6504315758&~: ~&6504222003&~(~&"7081320917948&~)
+                                ~&233726547792244&~: !chiplinksDashboard._busy
+                                ~&254542236275632405&~: chiplinksDashboard._browseShowDelete()
+                            }
+                        }
+                    }
+                }
+
+                /* ---- LAZY DIALOGS (direct children of chiplinksDashboard; z above sections) ----*/
+
+                /* Reset confirm (Overview). onAccepted delegates to the single _doReset() helper.*/
+                ~&7081645463424&~ {
+                    ~&5972374&~: _dashResetLoader
+                    ~&7082453764421&~: ~&214625660372&~
+                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                    ~&180995&~: 1000
+
+                    ~&16021043814775702381&~: ~&4498845937083848685&~ {
+                        ~&214642559243&~: ~&6504222003&~("Reset all Chiplinks data?")
+                        ~&478136262235079021&~: ~&6504222003&~("Permanently deletes all docs, links, pins, ToC and recents. Your notebook/PDF files are NOT affected.")
+                        ~&11971920598453341784&~: ~&6504222003&~(~&"214602092876&~)
+                        ~&13523480105588542791&~: ~&6504222003&~(~&"7081277108079&~)
+                        ~&8399893700003527327&~: chiplinksDashboard._doReset()
+                        ~&8399894427373474444&~: _dashResetLoader.~&7082453764421&~ = ~&214625660372&~
+                    }
+                }
+
+                /* Browse delete confirm. Description varies by inspected entity kind.*/
+                ~&7081645463424&~ {
+                    ~&5972374&~: _browseDeleteLoader
+                    ~&7082453764421&~: ~&214625660372&~
+                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                    ~&180995&~: 1000
+
+                    ~&16021043814775702381&~: ~&4498845937083848685&~ {
+                        ~&214642559243&~: ~&6504222003&~("Delete this item?")
+                        ~&478136262235079021&~: chiplinksDashboard._inspectKind === 0 ? ~&6504222003&~("The document is soft-deleted (recoverable).")
+                            : chiplinksDashboard._inspectKind === 1 ? ~&6504222003&~("The link is soft-deleted (recoverable).")
+                            : chiplinksDashboard._inspectKind === 2 ? ~&6504222003&~("The ToC entry is soft-deleted (recoverable).")
+                            : chiplinksDashboard._inspectKind === 3 ? ~&6504222003&~("This pin is permanently deleted.")
+                            : chiplinksDashboard._inspectKind === 5 ? ~&6504222003&~("The post-it is removed (soft-deleted). Its ink page stays in the scratch notebook.")
+                            : ~&6504222003&~("This recent entry is permanently forgotten.")
+                        ~&11971920598453341784&~: ~&6504222003&~(~&"7081320917948&~)
+                        ~&13523480105588542791&~: ~&6504222003&~(~&"7081277108079&~)
+                        ~&8399893700003527327&~: chiplinksDashboard._browseDoDelete()
+                        ~&8399894427373474444&~: _browseDeleteLoader.~&7082453764421&~ = ~&214625660372&~
+                    }
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

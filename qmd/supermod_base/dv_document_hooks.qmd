@@ -1,0 +1,79 @@
+AFFECT [[1224665461898798997]]
+    TRAVERSE [[8397993708429497603]]
+
+        TRAVERSE [[428051690305612204]][.[[7083194890448]]=[[7712934851008712]]]
+            REPLACE [[927074197512191160]] WITH {
+                function ~&927074197512191160&~(~&233743006687195&~) {
+                    /* P0 fix (sesión #33): cross-NOTEBOOK jumps silently landed on page 0 because*/
+                    /* the TOC-ready notify ran only AFTER this notebook early-return. Notify the*/
+                    /* LinkFlow FSM HERE for notebooks (it self-gates on the awaiting/navigating*/
+                    /* phase and resolves notebook pages by UUID). The PDF path below is unchanged —*/
+                    /* keeps its notify after the lazy model build.*/
+                    ~&5972376&~ (~&7712934851008712&~ && ~&7712934851008712&~.~&7713012671454059&~ === ~&7711571060833448&~.~&7711997891205770&~) {
+                        try { ~&15793094956877902211&~.linkFlowNotifyTocReady(); } catch(~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] links mod not loaded"); }
+                        ~&7083121450889&~;
+                    }
+                    ~&15793094956877902211&~._nativeTocModel = ~&233743006687195&~ || [];
+                    ~&15793094956877902211&~._nativeTocLoaded = ~&6504329801&~;
+                    /* LAZY: build the (potentially huge: 1000+ entries) TOC model*/
+                    /* only if the TOC view is actually open. While just reading the*/
+                    /* document the model isn't shown, so we skip the ~100ms+*/
+                    /* main-thread build entirely. When the user opens the TOC,*/
+                    /* pages.onVisibleChanged → tocLoadEntries → tocBuildModel builds it.*/
+                    ~&5972376&~ (~&214637513689&~.~&233748328658231&~) ~&15793094956877902211&~.tocBuildModel();
+                    try { ~&15793094956877902211&~.linkFlowNotifyTocReady(); } catch(~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] links mod not loaded"); }
+                }
+            }
+
+            REBUILD [[1576309469129240203]]
+                LOCATE AFTER ALL
+                INSERT {
+                    /* audit #2: defer off the native hot handler (also coalesces rapid*/
+                    /* page-map changes); tocRevalidateEntries self-gates + batches its DELETEs.*/
+                    ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~.tocRevalidateEntries);
+                    try { ~&6504254477&~.rmhRevalidateBookmarks(); } catch(~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] bookmarks mod not loaded"); }
+                }
+            END REBUILD
+        END TRAVERSE
+
+        LOCATE AFTER [[428051690305612204]][.[[7083194890448]]=[[7712934851008712]]]
+        INSERT {
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ~&214637513689&~
+                function ~&13733777459642361598&~() {
+                    ~&5972376&~ (~&214637513689&~.~&233748328658231&~ && ~&7712934851008712&~) {
+                        ~&5972376&~ (!~&214637513689&~.tocFromToolbar) tocLoadEntries();
+                        /* El build pesado quedó gateado tras pages.visible*/
+                        /* (tocBuildModelNow early-returns con el TOC cerrado), así que*/
+                        /* al ABRIR el TOC hay que disparar el build diferido. Cubre las*/
+                        /* rutas toolbar/crossdoc que no pasan por tocLoadEntries.*/
+                        tocBuildModel();
+                    }
+                }
+            }
+        }
+
+        REDEFINE [[15540965305686433881]]
+            LOCATE BEFORE { ~&7404132745648359986&~.~&3336948594954475301&~ = ~&214625660372&~; }
+            INSERT {
+                ~&5972376&~ (~&15793094956877902211&~.linkFlowSelecting) {
+                    ~&214637513689&~.~&233748328658231&~ = ~&6504329801&~;
+                }
+                /* BUG #3 (causa real): al reabrir el MISMO doc, _open_helper NO llama*/
+                /* root.close() (guard por document.id en DocumentView.qml:514) y reasigna*/
+                /* el mismo objeto → documentChanged NO se emite → el eager load de links*/
+                /* (dv_crossdoc.onDocumentChanged) nunca corre → tocItems queda []. Pero*/
+                /* _open_helper SÍ corre en cada apertura y acá `document` ya está asignado*/
+                /* (línea 518), así que recargamos el estado light (upsertDoc + loadTocItems*/
+                /* + meta; barato, alimenta los bindings PUROS de bookmarks) y refrescamos*/
+                /* los pins visibles del canvas (que cargan vía onCurrentPageChanged y*/
+                /* tampoco se re-emite al reabrir la misma página). El build COMBINADO*/
+                /* pesado sigue diferido por el gate pages.visible de tocBuildModelNow.*/
+                ~&5972376&~ (~&7712934851008712&~) {
+                    tocLoadEntries();
+                    try { pinRebuildVisible(); } catch (~&180974&~) { /* pins mod not loaded */ }
+                }
+            }
+        END REDEFINE
+    END TRAVERSE
+END AFFECT

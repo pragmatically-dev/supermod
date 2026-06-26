@@ -1,0 +1,25 @@
+AFFECT [[1224665461898798997]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE AFTER ALL
+        INSERT {
+            ~&6502786168&~ {
+                ~&5972374&~: _plannerRefBridge
+                /* Publish the real toolbar + main sceneView so the planner's embedded*/
+                /* editor (MainView) can bind a non-null toolbar and isolate pen input.*/
+                /* Bare `toolbar`/`sceneView` resolve here (DocumentView.qml file scope);*/
+                /* `navigator` resolves via the shared MainView id scope.*/
+                function _publish() {
+                    try { ~&254540341572282132&~.plToolbar = ~&233745975898428&~; } catch (~&180974&~) {}
+                    try { ~&254540341572282132&~.plSceneView = ~&254547437090201330&~; } catch (e2) {}
+                    try { ~&254540341572282132&~.plTools = ~&7842069035455457876&~; } catch (e3) {}
+                }
+                ~&254480451320573660&~.~&495334332051582499&~: { _plannerRefBridge._publish(); }
+                ~&254480451320573660&~.~&4464585548018432538&~: {
+                    try { ~&254540341572282132&~.plToolbar = ~&6504117156&~; } catch (~&180974&~) {}
+                    try { ~&254540341572282132&~.plSceneView = ~&6504117156&~; } catch (e2) {}
+                    try { ~&254540341572282132&~.plTools = ~&6504117156&~; } catch (e3) {}
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

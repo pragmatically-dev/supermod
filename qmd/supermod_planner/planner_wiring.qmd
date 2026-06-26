@@ -1,0 +1,25 @@
+AFFECT [[8850026134298937527]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            property ~&6503679477&~ plannerVisible: ~&214625660372&~
+            /* Cross-scope bridge for the planner's EMBEDDED ink editor (planner_overlay.qmd,*/
+            /* which lives in MainView). The native DocumentView's `toolbar` (DocumentView.qml*/
+            /* id L1532) and `sceneView` (id L788) are component-LOCAL ids — NOT aliases — so*/
+            /* `documentView.item.toolbar/.sceneView` resolve to undefined from MainView. A tiny*/
+            /* insertion INSIDE DocumentView (planner_docview_refs.qmd) publishes the real Items*/
+            /* here, where the embedded DeviceSceneView can bind a NON-null `toolbar` (the whole*/
+            /* point — a null toolbar = paste no-op + can't-draw, DeviceSceneView.qml:97/1100/1158).*/
+            property ~&197102514&~ plToolbar: ~&6504117156&~
+            property ~&197102514&~ plSceneView: ~&6504117156&~
+            property ~&197102514&~ plTools: ~&6504117156&~      /* DocumentView's documentViewTools (forceMoveTool etc.)*/
+        }
+    END TRAVERSE
+
+    TRAVERSE [[8397993708429497603]] > [[233703109346403]]#[[7712727139026210]]
+        LOCATE BEFORE ALL
+        INSERT {
+            onOpenPlanner: ~&6504254477&~.plannerVisible = ~&6504329801&~
+        }
+    END TRAVERSE
+END AFFECT

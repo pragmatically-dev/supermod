@@ -1,0 +1,369 @@
+AFFECT [[1224665461898798997]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            /* FSM phase mirrored as plain props so navigator/pages/toc_header bind*/
+            /* without each importing ChiplinksBackend (they already see documentView).*/
+            readonly property ~&6503679477&~ linkFlowSelecting: ChiplinksBackend.linkFlowPhase === ~&"254547531013851079&~
+            readonly property ~&6503679477&~ linkFlowCanReturn: ChiplinksBackend.linkFlowCanReturn
+
+            /* ── Event forwarders (intents DOWN) ───────────────────────*/
+            function tocStartCrossDocSelection() {
+                ChiplinksBackend.linkFlowStartSelection(
+                    ~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "",
+                    ~&7712934851008712&~ ? ~&7712934851008712&~.~&505890565057603928&~ : "",
+                    ~&15793094956877902211&~.~&477346483278306569&~);
+            }
+
+            /* Quick-link is the same flow as the full link (the old isLinkQuick flag*/
+            /* was never read — dead state, dropped).*/
+            function linkQuickStartCrossDoc() {
+                ChiplinksBackend.linkFlowStartSelection(
+                    ~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "",
+                    ~&7712934851008712&~ ? ~&7712934851008712&~.~&505890565057603928&~ : "",
+                    ~&15793094956877902211&~.~&477346483278306569&~);
+            }
+
+            function tocCompleteCrossDocSelection(targetDocId, targetPageKey, targetDocName, targetPageLabel) {
+                /* targetPageLabel is resolved by the caller while the TARGET doc is loaded*/
+                /* (pages.tocSelectPageForCrossDoc knows the page index) → stored on the*/
+                /* link + recent so recents shows "Page N" instead of a bare doc name.*/
+                ChiplinksBackend.linkFlowSelectTarget(
+                    targetDocId, targetPageKey, targetDocName, targetPageLabel || "",
+                    ~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "");
+            }
+
+            function tocNavigateToCrossDoc(xrefKey, targetDocId, targetPageKey) {
+                ~&5972376&~ (!targetDocId) ~&7083121450889&~;
+                /* exists/archived are Library facts the backend can't reach — pass them*/
+                /* as event data so the branch (error/download/same-doc/cross-doc) still*/
+                /* lives in the FSM.*/
+                ~&214622607920&~ ~&214624950331&~ = ~&233694067165438&~.~&8399431778896295215&~(targetDocId);
+                ChiplinksBackend.linkFlowNavigate(
+                    xrefKey || "", targetDocId, targetPageKey || "",
+                    ~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "", ~&15793094956877902211&~.~&477346483278306569&~,
+                    !!~&214624950331&~, ~&214624950331&~ ? !!~&214624950331&~.~&7712810854541167&~ : ~&214625660372&~);
+            }
+
+            /* Navigate a backlink PLACEMENT (one per source page, from the grouped model).*/
+            /* sourceDocId comes from the group; placement carries source_page / link_ids /*/
+            /* source_page_key.*/
+            function tocNavigateBacklink(sourceDocId, placement) {
+                ~&5972376&~ (!sourceDocId || !placement) ~&7083121450889&~;
+                ~&214622607920&~ sp = (placement.source_page !== ~&254550717068498203&~ && placement.source_page !== ~&6504117156&~)
+                           ? placement.source_page : -1;
+                ~&5972376&~ (sp >= 0) {
+                    /* Pinned placement → jump straight to THAT page (concrete index, no*/
+                    /* key resolve; the FSM records the one-slot return).*/
+                    ChiplinksBackend.linkFlowNavigateToPage(
+                        sourceDocId, sp, ~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "", ~&15793094956877902211&~.~&477346483278306569&~);
+                } ~&6503784146&~ {
+                    /* No pin → go to the link's birth page (resolved from the key),*/
+                    /* reusing the existence/archived branch of tocNavigateToCrossDoc.*/
+                    ~&214622607920&~ firstId = (placement.link_ids || "").~&7713616118928163&~().~&214641616085&~(~&"180917&~)[0] || "";
+                    tocNavigateToCrossDoc(firstId, sourceDocId, placement.source_page_key || "");
+                }
+            }
+
+            function tocReturnToSource() {
+                ChiplinksBackend.linkFlowReturn(~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "");
+            }
+
+            function linkFlowCancelSelection() {
+                ChiplinksBackend.linkFlowCancel();
+                _tocNewCrossDocXrefKey = "";
+            }
+
+            /* Notify the FSM that a doc's TOC finished loading (drives deferred-create +*/
+            /* forward page-resolve, incl. the Opening fallback). Gated on the phases*/
+            /* tocReady acts on; echoes the captured flow nonce so stale reloads are dropped.*/
+            function linkFlowNotifyTocReady() {
+                ~&214622607920&~ ph = ChiplinksBackend.linkFlowPhase;
+                ~&5972376&~ (~&7712934851008712&~ && (ph === "awaitingReturn" || ph === "opening" || ph === "resolving")) {
+                    ChiplinksBackend.linkFlowTocReady(~&7712934851008712&~.~&5972374&~, _linkFlowId);
+                }
+            }
+
+            /* Notify the FSM that the target doc became current (forward-nav Opening →*/
+            /* Resolving). Echoes the nonce; only meaningful while Opening.*/
+            function linkFlowNotifyDocBecameCurrent() {
+                ~&5972376&~ (~&7712934851008712&~ && ChiplinksBackend.linkFlowPhase === "opening") {
+                    ChiplinksBackend.linkFlowDocBecameCurrent(~&7712934851008712&~.~&5972374&~, _linkFlowId);
+                }
+            }
+
+            /* ── Action executor (state UP → effects) ──────────────────*/
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ChiplinksBackend
+                function onLinkFlowAction(~&7082453764199&~, ~&180985&~) {
+                    ~&7083181535963&~ (~&7082453764199&~) {
+                    ~&6503700293&~ "closeSidebar":        ~&5972376&~ (~&6504254477&~ && ~&6504254477&~.~&7712934851008712&~) ~&6504254477&~.~&214622501183&~(); ~&214621519406&~;
+                    ~&6503700293&~ "openDocAtPage":       ~&15793094956877902211&~._linkFlowId = ~&180985&~.flowId;
+                                                ~&15793094956877902211&~._execOpenDocAtPage(~&180985&~.~&214623780460&~, ~&180985&~.~&6504167078&~); ~&214621519406&~;
+                    ~&6503700293&~ "openPageHere":        ~&15793094956877902211&~._execOpenPageHere(~&180985&~.~&6504167078&~); ~&214621519406&~;
+                    ~&6503700293&~ "resolveAndOpenPage":  ~&15793094956877902211&~._execResolveAndOpenPage(~&180985&~.pageKey, ~&180985&~.xrefKey); ~&214621519406&~;
+                    ~&6503700293&~ "requestCreateLink":   ~&15793094956877902211&~._execRequestCreateLink(~&180985&~); ~&214621519406&~;
+                    ~&6503700293&~ "showError":           ~&15793094956877902211&~._execShowError(~&180985&~.xrefKey); ~&214621519406&~;
+                    ~&6503700293&~ "showDownload":        ~&15793094956877902211&~._execShowDownload(~&180985&~.targetDocId, ~&180985&~.targetPageKey); ~&214621519406&~;
+                    }
+                }
+            }
+
+            function _execOpenDocAtPage(~&214623780460&~, ~&6504167078&~) {
+                ~&214622607920&~ ~&180974&~ = ~&233694067165438&~.~&8399431778896295215&~(~&214623780460&~);
+                ~&5972376&~ (~&180974&~) ~&254540341572282132&~.~&9497240032101537789&~(~&180974&~, ~&6504167078&~);
+            }
+
+            function _execOpenPageHere(~&6504167078&~) {
+                ~&5972376&~ (~&7712934851008712&~) ~&6504254477&~.~&7713405014271992&~(~&6504167078&~, ~&14175747548438644067&~.~&10593835380864769165&~.~&233701679679437&~);
+            }
+
+            function _execResolveAndOpenPage(pageKey, xrefKey) {
+                ~&5972376&~ (!~&7712934851008712&~) ~&7083121450889&~;
+                ~&214622607920&~ pg = ~&7082020628281&~.tocResolvePageFromKey(~&7712934851008712&~, pageKey, tocPageForId);
+                ~&5972376&~ (pg >= 0 && pg < ~&7712934851008712&~.~&254543134818768527&~) {
+                    ~&6504254477&~.~&7713405014271992&~(pg, ~&14175747548438644067&~.~&10593835380864769165&~.~&233701679679437&~);
+                } ~&6503784146&~ ~&5972376&~ (pageKey) {
+                    ~&15793094956877902211&~.toastShow(~&6504222003&~("The linked page no longer exists"));
+                }
+            }
+
+            function _execRequestCreateLink(~&180985&~) {
+                /* Link birth via the backend createLink command (single create path, Model*/
+                /* B): it mints the id, stores source_page (anchor) + target_page_label, and*/
+                /* bumps recents — all traced. QML only supplies the xochitl-resolved SOURCE*/
+                /* page key (the user is back in the source doc here). No tocLoading guard,*/
+                /* no Math.random id, no metadata-JS — those moved to C++.*/
+                ~&214622607920&~ srcKey = _sourcePageKeyForCurrent();
+                ~&214622607920&~ xrefKey = ChiplinksBackend.createLink(
+                    ~&180985&~.sourceDocId, ~&180985&~.sourcePage, srcKey,
+                    ~&180985&~.targetDocId, ~&180985&~.targetPageKey,
+                    ~&180985&~.targetPageLabel || "", ~&180985&~.targetDocName || "");
+                ~&5972376&~ (!xrefKey) ~&7083121450889&~;
+                _tocNewCrossDocXrefKey = xrefKey;
+                /* Auto-place the chip on the source page (PinsRepo also syncs source_page).*/
+                ~&15793094956877902211&~.pinAddAtDefault(xrefKey);
+                /* Show the USER toc so the new xref's delegate appears and self-starts the*/
+                /* inline rename (toc_delegate keys on _tocNewCrossDocXrefKey).*/
+                ~&15793094956877902211&~.tocSetFilterMode(~&"6504366312&~);
+                try {
+                    ~&214637513689&~.tocShowView(~&6504329801&~);
+                    ~&214637513689&~.~&233748328658231&~ = ~&6504329801&~;
+                    ~&214637513689&~.tocStartEditingEntry(xrefKey, ~&180985&~.targetDocName);
+                } catch(~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] toc mod not loaded"); }
+                backlinksLoad();
+            }
+
+            function _execShowError(xrefKey) {
+                try {
+                    _tocCrossDocErrorLoader.xrefKey = xrefKey;
+                    _tocCrossDocErrorLoader.~&8399437315161921173&~ = ~&6504222003&~("Document not found");
+                    _tocCrossDocErrorLoader.~&15848919715906354904&~ = ~&6504222003&~("The linked document may have been deleted.");
+                    _tocCrossDocErrorLoader.~&7082453764421&~ = ~&6504329801&~;
+                } catch(~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] error loader unavailable"); }
+            }
+
+            function _execShowDownload(targetDocId, targetPageKey) {
+                ~&214622607920&~ ~&214624950331&~ = ~&233694067165438&~.~&8399431778896295215&~(targetDocId);
+                ~&5972376&~ (!~&214624950331&~) ~&7083121450889&~;
+                try {
+                    _tocCrossDocDownloadLoader.targetEntry = ~&214624950331&~;
+                    _tocCrossDocDownloadLoader.targetPageKey = targetPageKey;
+                    _tocCrossDocDownloadLoader.~&7082453764421&~ = ~&6504329801&~;
+                } catch(~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&6504419009&~("[supermod] download loader unavailable"); }
+            }
+
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ~&6504254477&~
+                function ~&13184053911240945935&~() {
+                    /* Pure data refresh on doc change. The deferred-create / forward*/
+                    /* resolve now ride the FSM via linkFlowNotifyTocReady (TOC hooks).*/
+                    _tocNewCrossDocXrefKey = "";
+                    /* If we're mid cross-doc selection and a NEW doc just opened, gate the*/
+                    /* page selection for ~1s: the target doc's page grid fires a stray*/
+                    /* "click" on its current page right after it renders, which otherwise*/
+                    /* auto-selects before the user can pick (and creates the link).*/
+                    ~&5972376&~ (~&15793094956877902211&~.linkFlowSelecting) {
+                        _crossDocSelectGateUntil = ~&6502586279&~.now() + 1000;
+                    }
+                    /* Forward-nav: the target doc became current → advance the FSM*/
+                    /* Opening → Resolving (a same-doc reopen doesn't fire this, but the*/
+                    /* tocReady fallback covers that case).*/
+                    linkFlowNotifyDocBecameCurrent();
+                    tocLoadEntries();
+                    backlinksLoad();
+                }
+            }
+
+            /* ── Backlinks (async via backend VIEW + grouped fold) ─────────*/
+            function backlinksLoad() {
+                ~&5972376&~ (!~&7712934851008712&~ || !~&7712934851008712&~.~&5972374&~) ~&7083121450889&~;
+                _backlinksLoading = ~&6504329801&~;
+                /* Empty pageKey → "all backlinks to this doc" (any page). The backend*/
+                /* returns DISPLAY-READY nested groups (one per source doc, with a*/
+                /* per-source-page placements sub-list) — zero grouping JS here.*/
+                ChiplinksBackend.loadBacklinkGroups(~&7712934851008712&~.~&5972374&~, "");
+            }
+
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ChiplinksBackend
+                function onBacklinkGroupsReady(~&214623780460&~, pageKey, ~&7082706198793&~) {
+                    ~&5972376&~ (!~&6504254477&~.~&7712934851008712&~ || ~&214623780460&~ !== ~&6504254477&~.~&7712934851008712&~.~&5972374&~ || pageKey !== "") ~&7083121450889&~;
+                    /* groups = [ { source_doc_id, source_doc_name,*/
+                    /*   placements:[ {source_page, link_count, link_ids, link_name,*/
+                    /*                 source_page_key} ] } ]. Consumed directly by both*/
+                    /*   the panel overlay and the TOC backlinks view.*/
+                    ~&6504254477&~._backlinksList = ~&7082706198793&~ || [];
+                    ~&6504254477&~._backlinksLoading = ~&214625660372&~;
+                }
+            }
+
+            /* ── Link Quick Add ───────────────────────────────────────*/
+            /* Recents the panel renders: the backend's nested groups (one entry per target*/
+            /* doc with a page sub-list). Grouping is done in C++; QML only resolves a*/
+            /* display label per page (pure transform, R-03) + denormalizes the doc onto*/
+            /* each page so the tap handler has everything.*/
+            function linkLoadRecents() {
+                ~&214622607920&~ _src = ~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "";
+                ~&214622607920&~ ~&7082706198793&~ = ChiplinksBackend.loadRecentGroups(_src, 200) || [];
+                /* Build FRESH plain JS objects (do NOT mutate the QVariant-converted ones —*/
+                /* those mutations don't reliably persist). Denormalize the doc onto each*/
+                /* page + resolve a display label so the tap handler has everything.*/
+                ~&214622607920&~ out = [];
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < ~&7082706198793&~.~&7082886407723&~; ~&180978&~++) {
+                    ~&214622607920&~ g = ~&7082706198793&~[~&180978&~];
+                    ~&5972376&~ (!g || !g.target_doc_id) ~&7712892661735406&~;
+                    ~&214622607920&~ srcPages = g.~&214637513689&~ || [];
+                    ~&214622607920&~ ~&214637513689&~ = [];
+                    ~&197085552&~ (~&197091758&~ ~&180979&~ = 0; ~&180979&~ < srcPages.~&7082886407723&~; ~&180979&~++) {
+                        ~&214622607920&~ ~&180985&~ = srcPages[~&180979&~];
+                        ~&214637513689&~.~&6504189257&~({
+                            target_doc_id:     g.target_doc_id,
+                            target_doc_name:   g.target_doc_name || "",
+                            target_page_key:   ~&180985&~.target_page_key || "",
+                            target_page_label: ~&180985&~.target_page_label || "",
+                            use_count:         ~&180985&~.use_count || 0,
+                            in_doc:            !!~&180985&~.in_doc,
+                            displayLabel:      _recentPageLabel(g.target_doc_id, ~&180985&~.target_page_key, ~&180985&~.target_page_label)
+                        });
+                    }
+                    out.~&6504189257&~({
+                        target_doc_id:   g.target_doc_id,
+                        target_doc_name: g.target_doc_name || "",
+                        total_use_count: g.total_use_count || 0,
+                        ~&214637513689&~:           ~&214637513689&~
+                    });
+                }
+                linkRecentsList = out;
+            }
+
+            /* Human label for a recent's target page. Stored label first; if empty and the*/
+            /* target doc happens to be the current one, resolve it precisely; else a coarse*/
+            /* fallback from the key (ebook ratio -> "~50%", notebook UUID -> generic).*/
+            function _recentPageLabel(targetDocId, pageKey, storedLabel) {
+                ~&5972376&~ (storedLabel && storedLabel.~&7082886407723&~) ~&7083121450889&~ storedLabel;
+                ~&5972376&~ (~&7712934851008712&~ && ~&7712934851008712&~.~&5972374&~ === targetDocId && pageKey) {
+                    try {
+                        ~&214622607920&~ pg = ~&7082020628281&~.tocResolvePageFromKey(~&7712934851008712&~, pageKey, tocPageForId);
+                        ~&5972376&~ (pg >= 0) ~&7083121450889&~ ~&6504222003&~(~&"233698925343196&~).~&197080195&~(pg + 1);
+                    } catch (~&180974&~) { /* fall through */ }
+                }
+                ~&5972376&~ (!pageKey || pageKey === "") ~&7083121450889&~ ~&6504222003&~("Whole document");
+                ~&5972376&~ (pageKey.~&233731717342038&~("p:") === 0) {
+                    ~&214622607920&~ ~&180987&~ = parseFloat(pageKey.~&254548200562243306&~(2));
+                    ~&5972376&~ (!~&214629831714&~(~&180987&~)) ~&7083121450889&~ "~" + ~&6502909715&~.~&214640404177&~(~&180987&~ * 100) + ~&"180910&~;
+                }
+                ~&7083121450889&~ ~&6504222003&~("Linked page");
+            }
+
+            /* The current page's stable key in THIS (source) doc — ebook ratio for ebook*/
+            /* body pages, page UUID otherwise. Same convention as createLink's source key.*/
+            function _sourcePageKeyForCurrent() {
+                ~&5972376&~ (!~&7712934851008712&~) ~&7083121450889&~ "";
+                ~&214622607920&~ ~&6504167078&~ = ~&15793094956877902211&~.~&477346483278306569&~;
+                ~&5972376&~ (~&7712934851008712&~.~&7713012671454059&~ === ~&7711571060833448&~.~&214586564057&~ && !~&7712934851008712&~.~&8399622833342862200&~(~&6504167078&~)) {
+                    ~&7083121450889&~ "p:" + ~&7082020628281&~.tocEbookPageToRatio(~&7712934851008712&~, ~&6504167078&~).~&233745927191932&~(6);
+                }
+                ~&7083121450889&~ ~&15793094956877902211&~.tocIdForPage(~&6504167078&~) || "";
+            }
+
+            function linkQuickAddRecent(~&6504167078&~) {
+                ~&5972376&~ (!~&6504167078&~ || !~&6504167078&~.target_doc_id) ~&7083121450889&~;
+                /* Always create a NEW distinct chiplink via the backend createLink command*/
+                /* (Model B). QML only supplies the xochitl-resolved source page key + the*/
+                /* stored target label; identity + persistence + recents-bump live in C++.*/
+                ~&214622607920&~ xrefKey = ChiplinksBackend.createLink(
+                    ~&7712934851008712&~ ? ~&7712934851008712&~.~&5972374&~ : "", ~&15793094956877902211&~.~&477346483278306569&~, _sourcePageKeyForCurrent(),
+                    ~&6504167078&~.target_doc_id, ~&6504167078&~.target_page_key || "",
+                    ~&6504167078&~.target_page_label || "",
+                    ~&6504167078&~.target_doc_name || "");
+                /* Place with collision-avoidance staggering (NOT screen-center), so a*/
+                /* SECOND chiplink to the same target on the SAME page lands below the*/
+                /* first instead of exactly on top of it (the "can't add the other one on*/
+                /* the same page" overlap). Same placement as the selection flow.*/
+                ~&5972376&~ (xrefKey) pinAddAtDefault(xrefKey);
+            }
+
+            /* Tap-to-go toggle intent (persisted via the settings backend). The Recents*/
+            /* overlay flips this; when "on", tapping a recent link NAVIGATES instead of*/
+            /* placing a chiplink. dv_state caches link.tapToGo in _settingsChip and re-pulls*/
+            /* on settingsChanged, so the overlay's _setting("link.tapToGo") binding updates.*/
+            function linkToggleTapToGo() {
+                ~&197102514&~ ~&5972582&~ = (_setting("link.tapToGo", ~&"197095044&~) === ~&"5972582&~);
+                ChiplinksBackend.setSetting("link.tapToGo", ~&5972582&~ ? ~&"197095044&~ : ~&"5972582&~);
+            }
+            function linkToggleBacklinkPreview() {
+                ~&197102514&~ ~&5972582&~ = (_setting("link.backlinkPreview", ~&"197095044&~) === ~&"5972582&~);
+                ChiplinksBackend.setSetting("link.backlinkPreview", ~&5972582&~ ? ~&"197095044&~ : ~&"5972582&~);
+            }
+
+            /* Backlink preview: the SOURCE page lives in the SOURCE doc at a concrete*/
+            /* index (placement.source_page), so this is simpler than the recents preview*/
+            /* (no key→index resolve). Same cold, read-only ThumbnailProvider render.*/
+            function backlinkPreviewWrapper(sourceDocId) {
+                ~&5972376&~ (!sourceDocId) ~&7083121450889&~ ~&6504117156&~;
+                ~&7083121450889&~ ~&233694067165438&~.~&8399431778896295215&~(sourceDocId);   /* QmlDocumentWrapper or null*/
+            }
+            function backlinkPreviewPageIndex(sourceDocId, placement) {
+                ~&5972376&~ (!sourceDocId || !placement) ~&7083121450889&~ -1;
+                ~&214622607920&~ sp = (placement.source_page !== ~&254550717068498203&~ && placement.source_page !== ~&6504117156&~)
+                           ? placement.source_page : -1;
+                ~&5972376&~ (sp < 0) ~&7083121450889&~ -1;
+                ~&214622607920&~ ~&180992&~ = ~&233694067165438&~.~&8399431778896295215&~(sourceDocId);
+                ~&5972376&~ (!~&180992&~) ~&7083121450889&~ -1;
+                ~&214622607920&~ n = ~&180992&~.~&254543134818768527&~ || 0;
+                ~&5972376&~ (sp >= n) ~&7083121450889&~ -1;
+                ~&7083121450889&~ sp;
+            }
+
+            /* Preview support for the Recents overlay (tap-to-go ON): a COLD, read-only*/
+            /* render of a cross-doc link's TARGET page. Library.entryForId is a cheap*/
+            /* wrapper lookup (no doc load, no DB query); PageThumbnail/ThumbnailProvider*/
+            /* renders the STORED page with no live SceneView (A7-safe, doesn't break R-39).*/
+            /* See SUPERMANUAL surfaces-thumbnail + surfaces-wrapper.*/
+            function linkPreviewWrapper(~&214623780460&~) {
+                ~&5972376&~ (!~&214623780460&~) ~&7083121450889&~ ~&6504117156&~;
+                ~&7083121450889&~ ~&233694067165438&~.~&8399431778896295215&~(~&214623780460&~);   /* QmlDocumentWrapper or null*/
+            }
+            function linkPreviewPageIndex(~&6504167078&~) {
+                ~&5972376&~ (!~&6504167078&~ || !~&6504167078&~.target_doc_id) ~&7083121450889&~ -1;
+                ~&214622607920&~ ~&180992&~ = ~&233694067165438&~.~&8399431778896295215&~(~&6504167078&~.target_doc_id);
+                ~&5972376&~ (!~&180992&~) ~&7083121450889&~ -1;
+                ~&214622607920&~ n = ~&180992&~.~&254543134818768527&~ || 0;
+                ~&5972376&~ (n <= 0) ~&7083121450889&~ -1;
+                ~&214622607920&~ ~&197090674&~ = (~&6504167078&~.target_page_key || "").~&7713616118928163&~();
+                ~&197091758&~ ~&197088462&~ = -1;
+                ~&5972376&~ (~&197090674&~.~&233731717342038&~("p:") === 0) {
+                    /* ebook/pdf ratio key → best-effort index (no live document here).*/
+                    ~&214622607920&~ ratio = parseFloat(~&197090674&~.~&214641468857&~(2));
+                    ~&5972376&~ (!~&214629831714&~(ratio)) ~&197088462&~ = ~&6502909715&~.~&214640404177&~(ratio * (n - 1));
+                } ~&6503784146&~ ~&5972376&~ (~&197090674&~ !== "") {
+                    ~&197088462&~ = ~&180992&~.~&254543134822321786&~(~&197090674&~);   /* notebook page UUID → page index*/
+                }
+                ~&5972376&~ (~&197088462&~ < 0 || ~&197088462&~ >= n) ~&7083121450889&~ -1;
+                ~&7083121450889&~ ~&197088462&~;
+            }
+        }
+    END TRAVERSE
+END AFFECT

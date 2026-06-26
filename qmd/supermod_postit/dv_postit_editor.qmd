@@ -1,0 +1,416 @@
+AFFECT [[1224665461898798997]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE AFTER ALL
+        INSERT {
+            ~&6502786168&~ {
+                ~&5972374&~: _postitEditorRoot
+                ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                ~&180995&~: 400
+                ~&233748328658231&~: ~&15793094956877902211&~._postitExpandedId !== ""
+                ~&233726547792244&~: ~&233748328658231&~
+
+                /* Capture the REAL host toolbar HERE, at _postitEditorRoot scope, where the*/
+                /* bare id `toolbar` (DocumentView.qml:1532) resolves correctly — proven by the*/
+                /* onVisibleChanged below using `toolbar.expanded` (device-validated auto-collapse).*/
+                /* Inside the Loader's Component the name `toolbar` self-shadows the DeviceSceneView's*/
+                /* own `toolbar` property (binding loop) and `sceneView` fails to resolve (-> undefined,*/
+                /* DocumentView.qml:8376 "assign [undefined] to QQuickItem*"). So we hand the resolved*/
+                /* Item down by QUALIFIED reference (_postitEditorRoot.hostToolbar), which works inside*/
+                /* the Component. Null toolbar was the real root cause of the paste no-op + can't-draw*/
+                /* (DeviceSceneView.qml:97/1100/1158 null derefs -> scene/currentLayer never init).*/
+                property ~&6502786168&~ hostToolbar: ~&233745975898428&~
+
+                /* The editor reuses the NATIVE toolbar (no custom tool UI): the*/
+                /* handler below follows documentViewTools.activePen, and the real*/
+                /* toolbar floats ABOVE this pop-up (zChrome), so expanding it gives*/
+                /* the full native pen/eraser/color foldouts for the post-it. On*/
+                /* open we only tuck it away (same call the refine flow uses).*/
+                ~&13733777459642361598&~: {
+                    ~&5972376&~ (~&233748328658231&~) {
+                        try { ~&233745975898428&~.~&7712989577739634&~ = ~&214625660372&~; } catch (~&180974&~) {}
+                        /* ISOLATE pen input (ghidra: there is ONE penInput.surfaceManager;*/
+                        /* the editor's PenInputSurface and the MAIN scene's inputSurface*/
+                        /* both register on it). Two live surfaces on one manager cross-route*/
+                        /* after a selection -> the "freeze on select" + dead input the user*/
+                        /* hit. Disable the MAIN surface while the post-it owns the screen*/
+                        /* (its handler binding goes null when adjustViewActive is true), so*/
+                        /* the manager routes ONLY to the post-it surface. Restored on close.*/
+                        try { ~&254547437090201330&~.~&13197452986715001771&~ = ~&6504329801&~; } catch (~&180974&~) {}
+                    } ~&6503784146&~ {
+                        try { ~&254547437090201330&~.~&13197452986715001771&~ = ~&214625660372&~; } catch (~&180974&~) {}
+                        _postitEndSelection();
+                    }
+                }
+
+                /* The canvas below is a REAL native DeviceSceneView (not a bare SceneView):*/
+                /* it owns the full native machinery — pens, eraser + lasso-eraser, lasso*/
+                /* SELECT with handles, MOVE, copy/cut/delete, text — driven by the SAME*/
+                /* toolbar as the main document. Selection/clipboard are handled INSIDE the*/
+                /* view on ITS controller; on close we just end any live selection so it*/
+                /* doesn't persist into the next open.*/
+                function _postitEndSelection() {
+                    ~&197102514&~ ~&180991&~ = _postitEditorLoader.~&6503936152&~;
+                    try { ~&5972376&~ (~&180991&~) ~&180991&~.~&12148339614529610933&~(); } catch (~&180974&~) {}
+                }
+
+                /* dim + swallow background taps (no accidental host strokes/taps)*/
+                ~&254501108490678590&~ {
+                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                    ~&214622605608&~: ~&"214621299494&~
+                    ~&233739540775906&~: 0.12
+                    ~&254494525842443467&~ { ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~ }
+                }
+
+                ~&254501108490678590&~ {
+                    ~&5972374&~: _postitPane
+                    ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                    /* BUG #3 (post-it "can't see everything"): the pane was capped at*/
+                    /* 900x1180 — far smaller than the 1404x1872 screen — so the inner*/
+                    /* SceneView (which fits the scratch page to ITS OWN width) showed*/
+                    /* only ~60% of the page; ink written past the visible edge landed*/
+                    /* off-view. Lock the pane to the reMarkable page aspect (W/H ≈ 0.75)*/
+                    /* so the scratch page fits both dimensions, and size it to a*/
+                    /* user-tunable fraction of the screen (postit.editorSizeFrac, default*/
+                    /* 0.95 ≈ near-fullscreen).*/
+                    readonly property ~&6504243117&~ _pageAspect: 1404 / 1872
+                    readonly property ~&6504243117&~ _sizeFrac: ~&15793094956877902211&~._setting("postit.editorSizeFrac", 0.95)
+                    ~&214646099849&~:  ~&6502909715&~.~&197092973&~(~&7083038346995&~.~&214646099849&~ * _sizeFrac, (~&7083038346995&~.~&7082729686082&~ * _sizeFrac) * _pageAspect)
+                    ~&7082729686082&~: ~&214646099849&~ / _pageAspect
+                    ~&214622605608&~: ~&"214646069354&~
+                    ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                    ~&7082507052999&~.~&214646099849&~: 3
+                    ~&7083116119249&~: 12
+
+                    /* ── Header ──*/
+                    ~&6502786168&~ {
+                        ~&5972374&~: _postitHeader
+                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: ~&7083038346995&~.~&197100796&~ }
+                        ~&233721384511543&~.~&233736391113274&~: 10
+                        ~&7082729686082&~: 48
+
+                        ~&3313440495918644137&~ {
+                            ~&233721384511543&~.~&6504027668&~: ~&7083038346995&~.~&6504027668&~
+                            ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                            ~&214646099849&~: ~&7083038346995&~.~&214646099849&~ - _postitHeaderBtns.~&214646099849&~ - 16
+                            ~&214624865996&~: ~&6503165774&~.~&8397943310926068554&~
+                            ~&6503823200&~.~&254543497768871654&~: ~&7082020628281&~.~&8015843119099583226&~
+                            ~&6503823200&~.~&6503679370&~: ~&6504329801&~
+                            ~&214622605608&~: ~&"214621299494&~
+                            ~&6504315758&~: ~&15793094956877902211&~._postitExpandedTitle.~&7082886407723&~ > 0
+                                  ? ~&15793094956877902211&~._postitExpandedTitle
+                                  : ~&6504222003&~("Post-it")
+                        }
+
+                        ~&197063777&~ {
+                            ~&5972374&~: _postitHeaderBtns
+                            ~&233721384511543&~.~&214640173127&~: ~&7083038346995&~.~&214640173127&~
+                            ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                            ~&233744706647566&~: 10
+
+                            /* ── Zoom / scroll within the scratch page (TODO #6) ──*/
+                            /* Drives the editor SceneView via the native focal-point API*/
+                            /* (setFocalPoint(point, scale), defaultCenter/defaultScale,*/
+                            /* tileManager.center/scale — same calls DeviceSceneView's*/
+                            /* singleStepZoom uses). All guarded: no-op while loading.*/
+                            ~&254501108490678590&~ {
+                                ~&214646099849&~: 40; ~&7082729686082&~: 40; ~&7083116119249&~: 20
+                                ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                ~&6503165774&~ { ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~; ~&6504315758&~: ~&"180918&~; ~&6503823200&~.~&254543497768871654&~: 22; ~&6503823200&~.~&6503679370&~: ~&6504329801&~; ~&214622605608&~: ~&"214621299494&~ }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: {
+                                        ~&197102514&~ ~&180991&~ = _postitEditorLoader.~&6503936152&~;
+                                        ~&5972376&~ (!~&180991&~ || !~&180991&~.~&502817364213021138&~) ~&7083121450889&~;
+                                        ~&197102514&~ ns = ~&6502909715&~.~&197092719&~(~&180991&~.~&15777890623490054006&~, ~&180991&~.~&502817364213021138&~.~&214641137009&~ / 1.5);
+                                        ~&180991&~.~&254547437090201330&~.~&10753335312005174244&~(ns <= ~&180991&~.~&15777890623490054006&~ ? ~&180991&~.~&4161556510681018511&~ : ~&180991&~.~&502817364213021138&~.~&7082534202858&~, ns);
+                                    }
+                                }
+                            }
+                            ~&254501108490678590&~ {
+                                ~&214646099849&~: 40; ~&7082729686082&~: 40; ~&7083116119249&~: 20
+                                ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                ~&6503165774&~ { ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~; ~&6504315758&~: ~&"180916&~; ~&6503823200&~.~&254543497768871654&~: 22; ~&6503823200&~.~&6503679370&~: ~&6504329801&~; ~&214622605608&~: ~&"214621299494&~ }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: {
+                                        ~&197102514&~ ~&180991&~ = _postitEditorLoader.~&6503936152&~;
+                                        ~&5972376&~ (!~&180991&~ || !~&180991&~.~&502817364213021138&~) ~&7083121450889&~;
+                                        ~&180991&~.~&254547437090201330&~.~&10753335312005174244&~(~&180991&~.~&502817364213021138&~.~&7082534202858&~, ~&6502909715&~.~&197092973&~(~&180991&~.~&15777890623490054006&~ * 4, ~&180991&~.~&502817364213021138&~.~&214641137009&~ * 1.5));
+                                    }
+                                }
+                            }
+                            ~&254501108490678590&~ {
+                                ~&214646099849&~: 40; ~&7082729686082&~: 40; ~&7083116119249&~: 20
+                                ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                ~&425121728314878811&~.~&6502767986&~ {
+                                    ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                    ~&7083172477658&~: ~&"5203804671957656361&~
+                                    ~&6504284228&~: 18
+                                    ~&214622605608&~: ~&"214621299494&~
+                                }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: {
+                                        ~&197102514&~ ~&180991&~ = _postitEditorLoader.~&6503936152&~;
+                                        ~&5972376&~ (!~&180991&~ || !~&180991&~.~&502817364213021138&~) ~&7083121450889&~;
+                                        ~&197102514&~ ~&5972746&~ = ~&180991&~.~&502817364213021138&~;
+                                        ~&180991&~.~&254547437090201330&~.~&10753335312005174244&~(~&5971598&~.~&214638019283&~(~&5972746&~.~&7082534202858&~.~&180993&~, ~&5972746&~.~&7082534202858&~.~&180994&~ - 400 / ~&5972746&~.~&214641137009&~), ~&5972746&~.~&214641137009&~);
+                                    }
+                                }
+                            }
+                            ~&254501108490678590&~ {
+                                ~&214646099849&~: 40; ~&7082729686082&~: 40; ~&7083116119249&~: 20
+                                ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                ~&425121728314878811&~.~&6502767986&~ {
+                                    ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                    ~&7083172477658&~: ~&"3792857133054823036&~
+                                    ~&6504284228&~: 18
+                                    ~&214622605608&~: ~&"214621299494&~
+                                }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: {
+                                        ~&197102514&~ ~&180991&~ = _postitEditorLoader.~&6503936152&~;
+                                        ~&5972376&~ (!~&180991&~ || !~&180991&~.~&502817364213021138&~) ~&7083121450889&~;
+                                        ~&197102514&~ ~&5972746&~ = ~&180991&~.~&502817364213021138&~;
+                                        ~&180991&~.~&254547437090201330&~.~&10753335312005174244&~(~&5971598&~.~&214638019283&~(~&5972746&~.~&7082534202858&~.~&180993&~, ~&5972746&~.~&7082534202858&~.~&180994&~ + 400 / ~&5972746&~.~&214641137009&~), ~&5972746&~.~&214641137009&~);
+                                    }
+                                }
+                            }
+                            ~&254501108490678590&~ {
+                                ~&214646099849&~: _postitFitLabel.~&12921149980962105220&~ + 24
+                                ~&7082729686082&~: 40; ~&7083116119249&~: 20
+                                ~&214622605608&~: ~&"503220030291830651&~; ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~; ~&7082507052999&~.~&214646099849&~: 2
+                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                ~&3313440495918644137&~ {
+                                    ~&5972374&~: _postitFitLabel
+                                    ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                    ~&6504315758&~: ~&6504222003&~("Fit")
+                                    ~&214622605608&~: ~&"214621299494&~
+                                    ~&6503823200&~.~&254543497768871654&~: ~&7082020628281&~.~&8015843119099583227&~
+                                }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: {
+                                        ~&197102514&~ ~&180991&~ = _postitEditorLoader.~&6503936152&~;
+                                        ~&5972376&~ (!~&180991&~ || !~&180991&~.~&502817364213021138&~) ~&7083121450889&~;
+                                        ~&180991&~.~&254547437090201330&~.~&10753335312005174244&~(~&180991&~.~&4161556510681018511&~, ~&180991&~.~&15777890623490054006&~);
+                                    }
+                                }
+                            }
+
+                            ~&254501108490678590&~ {
+                                ~&214646099849&~: 40; ~&7082729686082&~: 40; ~&7083116119249&~: 20
+                                ~&214622605608&~: ~&"503220030291830651&~
+                                ~&7082507052999&~.~&214622605608&~: ~&"214621299494&~
+                                ~&7082507052999&~.~&214646099849&~: 2
+                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                ~&425121728314878811&~.~&6502767986&~ {
+                                    ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                    ~&7083172477658&~: ~&"8609871989899886756&~
+                                    ~&6504284228&~: 18
+                                    ~&214622605608&~: ~&"214621299494&~
+                                }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: ~&15793094956877902211&~.postitRemoveWithUndo(~&15793094956877902211&~._postitExpandedId)
+                                }
+                            }
+
+                            ~&254501108490678590&~ {
+                                ~&214646099849&~: _postitDoneLabel.~&12921149980962105220&~ + 28
+                                ~&7082729686082&~: 40
+                                ~&7083116119249&~: 20
+                                ~&214622605608&~: ~&"214621299494&~
+                                ~&233721384511543&~.~&3441383163516681764&~: ~&7083038346995&~.~&3441383163516681764&~
+                                ~&3313440495918644137&~ {
+                                    ~&5972374&~: _postitDoneLabel
+                                    ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                                    ~&6504315758&~: ~&6504222003&~("Minimize")
+                                    ~&214622605608&~: ~&"214646069354&~
+                                    ~&6503823200&~.~&254543497768871654&~: ~&7082020628281&~.~&8015843119099583227&~
+                                    ~&6503823200&~.~&6503679370&~: ~&6504329801&~
+                                }
+                                ~&254494525842443467&~ {
+                                    ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                                    ~&254542236275632405&~: ~&15793094956877902211&~.postitMinimize()
+                                }
+                            }
+                        }
+                    }
+
+                    ~&254501108490678590&~ {
+                        ~&233721384511543&~ { ~&6504027668&~: ~&7083038346995&~.~&6504027668&~; ~&214640173127&~: ~&7083038346995&~.~&214640173127&~; ~&197100796&~: _postitHeader.~&7082507142622&~ }
+                        ~&233721384511543&~.~&8399743405844438450&~: 10
+                        ~&233721384511543&~.~&499747351624466981&~: 10
+                        ~&7082729686082&~: 1
+                        ~&214622605608&~: "#808080"
+                    }
+
+                    /* ── Writable canvas ──*/
+                    ~&6502786168&~ {
+                        ~&5972374&~: _postitCanvas
+                        ~&233721384511543&~ {
+                            ~&6504027668&~: ~&7083038346995&~.~&6504027668&~
+                            ~&214640173127&~: ~&7083038346995&~.~&214640173127&~
+                            ~&197100796&~: _postitHeader.~&7082507142622&~
+                            ~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~
+                        }
+                        ~&233721384511543&~.~&233736391113274&~: 12
+                        ~&233721384511543&~.~&254549367831075482&~: 8
+                        ~&6503711953&~: ~&6504329801&~
+
+                        ~&7081645463424&~ {
+                            ~&5972374&~: _postitEditorLoader
+                            ~&233721384511543&~.~&6503816592&~: ~&7083038346995&~
+                            ~&7082453764421&~: ~&15793094956877902211&~._postitExpandedId !== "" &&
+                                    !!~&15793094956877902211&~._postitExpandedDoc &&
+                                    ~&15793094956877902211&~._postitExpandedPageKey !== ""
+                            /* A REAL native DeviceSceneView on the post-it's scratch page —*/
+                            /* NOT a bare SceneView. It brings the entire native canvas: pens,*/
+                            /* eraser + lasso-eraser, lasso SELECT with handles, MOVE, copy /*/
+                            /* cut / delete, text — all driven by the SAME toolbar*/
+                            /* (documentViewTools), identical to the main document. We feed it*/
+                            /* the post-it Document + the shared penInput + the shared toolbar,*/
+                            /* then goToPage() the post-it's page. Selection + clipboard are*/
+                            /* handled INSIDE the view on ITS controller; the only thing it*/
+                            /* delegates up is paste (onPasteFromStroke), routed into THIS*/
+                            /* controller for native paste-then-place.*/
+                            ~&16021043814775702381&~: ~&5728643844066569666&~ {
+                                ~&5972374&~: _postitEditorView
+                                ~&7712934851008712&~: ~&15793094956877902211&~._postitExpandedDoc
+                                /* required native inputs*/
+                                ~&7713433736001692&~:              ~&6504254477&~.~&7713433736001692&~
+                                ~&7713433728813122&~:              ~&6504254477&~.~&7713433728813122&~
+                                ~&13251626042595204541&~:       ~&214625660372&~
+                                ~&17720114556587926416&~: ~&"197095044&~
+                                ~&5047111594159710245&~:   0
+                                /* CRITICAL: bind the REAL host toolbar, NOT the bare name `toolbar`.*/
+                                /* DeviceSceneView declares `required property Item toolbar` (native*/
+                                /* DeviceSceneView.qml:36). The native DocumentView binds `toolbar: toolbar`*/
+                                /* (DocumentView.qml:807) because its `id: toolbar` (DocumentView.qml:1532)*/
+                                /* is in scope there. At THIS insert point that id is NOT in scope, so a*/
+                                /* bare `toolbar: toolbar` resolves the RHS to THIS view's own toolbar*/
+                                /* property -> self-referential binding loop -> toolbar stays null ->*/
+                                /* availableSceneRect / scrollbar / HwcSelection deref null (DeviceSceneView.qml*/
+                                /* :97/1100/1158) -> the scene + controller.currentLayer never initialize ->*/
+                                /* paste (cloneAddAndSelectItems) silently no-ops AND the earlier crash class.*/
+                                /* Qualified ref to the toolbar captured at _postitEditorRoot scope*/
+                                /* (bare `toolbar`/`sceneView` do NOT resolve correctly inside this Component).*/
+                                ~&233745975898428&~:               _postitEditorRoot.hostToolbar
+                                /* optional*/
+                                ~&495572996767745525&~:           ~&6504254477&~.~&495572996767745525&~
+                                ~&501502831119479302&~:           ~&6504329801&~
+                                ~&13197452986715001771&~:      ~&214625660372&~
+                                ~&214626153769&~:                 ~&6504329801&~
+
+                                /* DeviceSceneView allocates its scene in goToPage(); map the*/
+                                /* post-it pageId -> page index and load it. The Loader recreates*/
+                                /* this view on every open (you must minimize before opening*/
+                                /* another post-it, so the editor is a full overlay), so*/
+                                /* Component.onCompleted is sufficient.*/
+                                function _loadPostitPage() {
+                                    ~&5972376&~ (!~&7712934851008712&~ || ~&15793094956877902211&~._postitExpandedPageKey === "") ~&7083121450889&~;
+                                    ~&197102514&~ ~&197088462&~ = ~&7712934851008712&~.~&254543134822321786&~(~&15793094956877902211&~._postitExpandedPageKey);
+                                    ~&5972376&~ (~&197088462&~ >= 0) { ~&7713062111144447&~(~&197088462&~); ~&9186019576827190292&~(); }
+                                }
+                                ~&254480451320573660&~.~&495334332051582499&~: { _postitEditorView._loadPostitPage(); }
+
+                                /* Paste INTO the post-it the native way: select tool +*/
+                                /* cloneAddAndSelectItems on THIS controller -> the view's own*/
+                                /* selection machinery shows handles, so the paste lands*/
+                                /* selected/movable and tapping away commits. Same as the main*/
+                                /* view's items-paste, scoped to the post-it scene.*/
+                                ~&17486295516791181551&~: (~&7713446884515614&~) => {
+                                    /* PASTE into the post-it. Accepts ALL scene-item types (ink rmlines,*/
+                                    /* images/stickers — anything copied IN xochitl lands in Clipboard.items*/
+                                    /* as SceneItems, incl. SceneImageItem) plus a best-effort path for a*/
+                                    /* raw system image (Clipboard.image). Two device-confirmed bugs were*/
+                                    /* killing this (vault: postit-paste-native-clone-add-fix bug#2):*/
+                                    /*  (a) the global tool was switched to Line.SelectionTool and NEVER*/
+                                    /*      restored -> after a paste the next stroke selected instead of*/
+                                    /*      drawing ("can't write after paste"). We DON'T touch the tool now.*/
+                                    /*  (b) the paste landed SELECTED/modal and was never ended -> same*/
+                                    /*      can't-draw. We END the selection right after, which (with no*/
+                                    /*      SceneSelectionHandler mounted, as here) runs the native*/
+                                    /*      setSelectionActive(false)+cancelPendingEdit() — items COMMIT to*/
+                                    /*      the scene and the pen keeps drawing (DeviceSceneView.qml:1521).*/
+                                    ~&197102514&~ ~&180991&~ = _postitEditorView;
+                                    /* CRITICAL JS-falsy BUG FIX: currentLayer is a LAYER INDEX and the*/
+                                    /* default/first layer is 0. The old guard `!controller.currentLayer`*/
+                                    /* treated layer 0 as "not ready" (!0 === true) -> it SKIPPED EVERY*/
+                                    /* paste (device log: "[postit-paste] SKIP ... not ready" on every tap).*/
+                                    /* Use an explicit null/undefined check so layer 0 is accepted.*/
+                                    ~&197102514&~ ~&6503720958&~ = ~&180991&~ ? ~&180991&~.~&8399340108982949229&~ : ~&6504117156&~;
+                                    ~&197102514&~ ~&214632789606&~ = ~&6503720958&~ ? ~&6503720958&~.~&15752433948179392809&~ : ~&254550717068498203&~;
+                                    ~&5972376&~ (!~&180991&~ || ~&180991&~.~&7713604650934547&~ || !~&6503720958&~ || ~&214632789606&~ === ~&6504117156&~ || ~&214632789606&~ === ~&254550717068498203&~) {
+                                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit-paste] SKIP: textMode=" + (~&180991&~ ? ~&180991&~.~&7713604650934547&~ : "noview")
+                                                    + " controller=" + (~&6503720958&~ ? ~&"5972579&~ : "NULL")
+                                                    + " currentLayer=" + ~&214632789606&~);
+                                        ~&7083121450889&~;
+                                    }
+                                    ~&197102514&~ ~&233744628851284&~ = ~&5971598&~.~&214638019283&~(~&6502909715&~.~&214640404177&~(~&7713446884515614&~.~&180993&~), ~&6502909715&~.~&214640404177&~(~&7713446884515614&~.~&180994&~));
+                                    ~&197102514&~ ~&214641137009&~ = 1 / ~&180991&~.~&15777890623490054006&~;
+                                    ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit-paste] ENTER layer=" + ~&214632789606&~ + " hasItems=" + ~&254480318283987577&~.~&7713087818466343&~
+                                                + " hasImage=" + ~&254480318283987577&~.hasImage + " hasText=" + ~&254480318283987577&~.~&233729934272522&~
+                                                + " lastType=" + ~&254480318283987577&~.~&18264147437956406003&~);
+                                    ~&5972376&~ (~&254480318283987577&~.~&7713087818466343&~) {
+                                        /* 4-arg STROKE overload (layer, items, 1/defaultScale, snappedPoint):*/
+                                        /* builds the scene before selecting -> no uninitialized-scene abort.*/
+                                        ~&6503720958&~.~&1571215841252944472&~(~&214632789606&~, ~&254480318283987577&~.~&214629893131&~, ~&214641137009&~, ~&233744628851284&~);
+                                        ~&180991&~.~&12148339614529610933&~();   /* commit + clear selection -> keep drawing*/
+                                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit-paste] items OK");
+                                        ~&15793094956877902211&~.toastShow(~&6504222003&~("Pasted"));
+                                    } ~&6503784146&~ ~&5972376&~ (~&254480318283987577&~.hasImage) {
+                                        /* Raw system/clipboard image (e.g. from the ClipboardInjector). Try the*/
+                                        /* known native image-paste entry points in order; the trace reports which*/
+                                        /* signature actually worked. All guarded so a mismatch can't crash xovi.*/
+                                        ~&197102514&~ ~&6503751311&~ = "";
+                                        ~&197102514&~ attempts = [
+                                            ["addFloatingImageSceneItem(layer,image,pt)", function(){ ~&6503720958&~.addFloatingImageSceneItem(~&214632789606&~, ~&254480318283987577&~.~&214629637004&~, ~&233744628851284&~); }],
+                                            ["addFloatingImageSceneItem(image,pt)",       function(){ ~&6503720958&~.addFloatingImageSceneItem(~&254480318283987577&~.~&214629637004&~, ~&233744628851284&~); }],
+                                            ["pasteClipboardContentAsFloatingSceneImage(pt)", function(){ ~&6503720958&~.pasteClipboardContentAsFloatingSceneImage(~&233744628851284&~); }],
+                                            ["insertImageAsSceneItem(image,pt)",          function(){ ~&6503720958&~.insertImageAsSceneItem(~&254480318283987577&~.~&214629637004&~, ~&233744628851284&~); }]
+                                        ];
+                                        ~&197085552&~ (~&197102514&~ ~&180978&~ = 0; ~&180978&~ < attempts.~&7082886407723&~ && ~&6503751311&~ === ""; ~&180978&~++) {
+                                            try { attempts[~&180978&~][1](); ~&6503751311&~ = attempts[~&180978&~][0]; }
+                                            catch (~&180974&~) { ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit-paste] img try '" + attempts[~&180978&~][0] + "' failed: " + ~&180974&~); }
+                                        }
+                                        ~&5972376&~ (~&6503751311&~ !== "") {
+                                            ~&180991&~.~&12148339614529610933&~();
+                                            ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit-paste] image OK via " + ~&6503751311&~);
+                                            ~&15793094956877902211&~.toastShow(~&6504222003&~("Image pasted"));
+                                        } ~&6503784146&~ {
+                                            ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit-paste] image: ALL signatures failed");
+                                            ~&15793094956877902211&~.toastShow(~&6504222003&~("Could not paste image"));
+                                        }
+                                    } ~&6503784146&~ {
+                                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[postit-paste] nothing on clipboard (no items, no image)");
+                                        ~&15793094956877902211&~.toastShow(~&6504222003&~("Nothing to paste"));
+                                    }
+                                }
+                                ~&14278829954804520394&~: { ~&7842069035455457876&~.~&8021204548344235469&~ = ~&6504329801&~; }
+                                ~&18283291262635204234&~: { _postitEditorView.~&12148339614529610933&~(); }
+                            }
+                        }
+
+                        /* "loading" hint until the scratch page's controller is ready*/
+                        ~&3313440495918644137&~ {
+                            ~&233721384511543&~.~&7712879746914881&~: ~&7083038346995&~
+                            ~&233748328658231&~: !(_postitEditorLoader.~&6503936152&~ && _postitEditorLoader.~&6503936152&~.~&8399340108982949229&~)
+                            ~&6504315758&~: ~&6504222003&~("Loading post-it...")
+                            ~&214622605608&~: "#808080"
+                            ~&6503823200&~.~&254543497768871654&~: ~&7082020628281&~.~&8015843119099583227&~
+                        }
+
+                    }
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

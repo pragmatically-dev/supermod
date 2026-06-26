@@ -1,0 +1,295 @@
+AFFECT [[1224665461898798997]]
+    IMPORT dev.pragmatically.chiplinks [[180921.180922]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            function _pinEditingIdFor(xrefKey, ~&6504167078&~) {
+                ~&7083121450889&~ (xrefKey || "") + "#" + (~&6504167078&~ !== ~&254550717068498203&~ ? ~&6504167078&~ : -1);
+            }
+
+            /* Rebuild _visiblePins for the current page from the backend.*/
+            function pinRebuildVisible() {
+                ~&5972376&~ (!~&7712934851008712&~) { _visiblePins = []; ~&7083121450889&~; }
+                ~&5972376&~ (~&477346483278306569&~ < 0) ~&7083121450889&~;
+                ~&214622607920&~ pins = ChiplinksBackend.loadPinsForPage(~&7712934851008712&~.~&5972374&~, ~&477346483278306569&~);
+                ~&214622607920&~ ~&7083121414760&~ = [];
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < pins.~&7082886407723&~; ~&180978&~++) {
+                    ~&214622607920&~ ~&180985&~ = pins[~&180978&~];
+                    ~&197091758&~ pinStatus = ~&"254522926132630058&~;
+                    ~&5972376&~ (~&180985&~.target_doc_id) {
+                        try {
+                            ~&214622607920&~ ~&214624950331&~ = ~&233694067165438&~.~&8399431778896295215&~(~&180985&~.target_doc_id);
+                            ~&5972376&~ (!~&214624950331&~) pinStatus = "deleted";
+                            ~&6503784146&~ ~&5972376&~ (~&214624950331&~.~&7712810854541167&~) pinStatus = ~&"7712810854541167&~;
+                        } catch (~&180974&~) { /* Library not available */ }
+                    }
+                    ~&7083121414760&~.~&6504189257&~({
+                        xrefKey:       ~&180985&~.link_id,
+                        /* pinIndex aliased to source_page so the dv_pin_render*/
+                        /* legacy code (which still uses the name "pinIndex")*/
+                        /* passes the right value to setPin/removePin/etc.*/
+                        pinIndex:      ~&180985&~.source_page,
+                        pinPage:       ~&180985&~.source_page,
+                        pinName:       ~&180985&~.link_name || "",
+                        targetDocId:   ~&180985&~.target_doc_id || "",
+                        targetPageKey: ~&180985&~.target_page_key || ~&"180921&~,
+                        pinX:          ~&180985&~.~&180993&~,
+                        pinY:          ~&180985&~.~&180994&~,
+                        pinColorIdx:   ~&180985&~.color_idx || 0,
+                        pinStatus:     pinStatus
+                    });
+                }
+                _visiblePins = ~&7083121414760&~;
+            }
+
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ~&15793094956877902211&~
+                function ~&2104365313657427216&~() {
+                    ~&15793094956877902211&~.pinExitEdit();
+                    /* Refresh the current-page cache used by pinSnapResolve*/
+                    /* during drag — without it, every onPositionChanged would*/
+                    /* round-trip to sqlite.*/
+                    ~&5972376&~ (~&15793094956877902211&~.~&7712934851008712&~ && ~&15793094956877902211&~.~&477346483278306569&~ >= 0) {
+                        ~&214622607920&~ _perfT0 = ~&6502586279&~.now();
+                        ~&15793094956877902211&~._pinsOnCurrentPage =
+                            ChiplinksBackend.loadPinsForPage(~&15793094956877902211&~.~&7712934851008712&~.~&5972374&~, ~&15793094956877902211&~.~&477346483278306569&~);
+                        ~&5972376&~ (~&7082020628281&~.supermodTrace) ~&233724020023100&~.~&197092075&~("[chiplinks-perf] pageChange loadPinsForPage ms=" + (~&6502586279&~.now() - _perfT0) +
+                                    " pins=" + ~&15793094956877902211&~._pinsOnCurrentPage.~&7082886407723&~);
+                    } ~&6503784146&~ {
+                        ~&15793094956877902211&~._pinsOnCurrentPage = [];
+                    }
+                    ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~.pinRebuildVisible);
+                }
+            }
+
+            ~&428051690305612204&~ {
+                ~&7083194890448&~: ChiplinksBackend
+                function onPinsChanged(linkId) {
+                    ~&5972376&~ (~&15793094956877902211&~.pinAnyDragging) ~&7083121450889&~;
+                    /* Refresh current-page cache so the next snap resolve is fresh.*/
+                    ~&5972376&~ (~&15793094956877902211&~.~&7712934851008712&~ && ~&15793094956877902211&~.~&477346483278306569&~ >= 0) {
+                        ~&15793094956877902211&~._pinsOnCurrentPage =
+                            ChiplinksBackend.loadPinsForPage(~&15793094956877902211&~.~&7712934851008712&~.~&5972374&~, ~&15793094956877902211&~.~&477346483278306569&~);
+                    }
+                    ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~.pinRebuildVisible);
+                }
+                /* A chiplink rename updates links.name, which the pin pill displays*/
+                /* (modelData.pinName = link_name). Refresh visible pins so the new name*/
+                /* shows immediately, without waiting for a page change.*/
+                function onLinksChanged(sourceDocId) {
+                    ~&5972376&~ (~&15793094956877902211&~.pinAnyDragging) ~&7083121450889&~;
+                    ~&5972376&~ (~&15793094956877902211&~.~&7712934851008712&~ && sourceDocId === ~&15793094956877902211&~.~&7712934851008712&~.~&5972374&~) {
+                        ~&5971598&~.~&254524858248187773&~(~&15793094956877902211&~.pinRebuildVisible);
+                    }
+                }
+            }
+
+            /* ── Placement flow (UI state) ──*/
+            function pinStartPlacement(xrefKey) {
+                ~&5972376&~ (!xrefKey) ~&7083121450889&~;
+                ~&214622607920&~ ~&6503936152&~ = tocItems.~&6503816650&~(~&180974&~ => ~&180974&~.~&5972374&~ === xrefKey);
+                ~&5972376&~ (!~&6503936152&~) ~&7083121450889&~;
+                _pinPlacementXrefKey   = xrefKey;
+                _pinPlacementActive    = ~&6504329801&~;
+                _pinTentativeVisible   = ~&214625660372&~;
+                _pinTentativeX         = -1;
+                _pinTentativeY         = -1;
+                try { tocCloseView(); } catch (~&180974&~) { /* toc mod not loaded */ }
+            }
+
+            function pinCancelPlacement() {
+                _pinPlacementActive  = ~&214625660372&~;
+                _pinPlacementXrefKey = "";
+                _pinTentativeVisible = ~&214625660372&~;
+                _pinTentativeX       = -1;
+                _pinTentativeY       = -1;
+            }
+
+            function pinTentativeSet(~&6504243460&~, ~&6504243461&~) {
+                ~&5972376&~ (!_pinPlacementActive || !_pinPlacementXrefKey) ~&7083121450889&~;
+                _pinTentativeX       = ~&6502909715&~.~&197092719&~(pinBoundsMin, ~&6502909715&~.~&197092973&~(pinBoundsMax, ~&6504243460&~));
+                _pinTentativeY       = ~&6502909715&~.~&197092719&~(pinYBoundsMin, ~&6502909715&~.~&197092973&~(pinYBoundsMax, ~&6504243461&~));
+                _pinTentativeVisible = ~&6504329801&~;
+            }
+
+            function pinTentativeConfirm() {
+                ~&5972376&~ (!_pinTentativeVisible || !_pinPlacementXrefKey) ~&7083121450889&~;
+                pinCommitPlacement(_pinTentativeX, _pinTentativeY);
+            }
+
+            function pinTentativeReposition() {
+                _pinTentativeVisible = ~&214625660372&~;
+            }
+
+            function pinCommitPlacement(~&6504243460&~, ~&6504243461&~) {
+                ~&5972376&~ (!_pinPlacementActive || !_pinPlacementXrefKey) ~&7083121450889&~;
+                ~&214622607920&~ ~&197090674&~ = _pinPlacementXrefKey;
+                _pinPlacementActive  = ~&214625660372&~;
+                _pinPlacementXrefKey = "";
+                _pinTentativeVisible = ~&214625660372&~;
+                _pinTentativeX       = -1;
+                _pinTentativeY       = -1;
+                ~&214622607920&~ ~&180993&~ = ~&6502909715&~.~&197092719&~(pinBoundsMin, ~&6502909715&~.~&197092973&~(pinBoundsMax, ~&6504243460&~));
+                ~&214622607920&~ ~&180994&~ = ~&6502909715&~.~&197092719&~(pinYBoundsMin, ~&6502909715&~.~&197092973&~(pinYBoundsMax, ~&6504243461&~));
+                ~&214622607920&~ ~&5972579&~ = ChiplinksBackend.setPin(~&197090674&~, ~&477346483278306569&~, ~&180993&~, ~&180994&~, 1.0, 0);
+                ~&5972376&~ (~&5972579&~) {
+                    /* recents is bumped by the create command, not pin placement (double-count).*/
+                    toastShow(~&6504222003&~("Pin added on page %1").~&197080195&~(~&477346483278306569&~ + 1));
+                }
+            }
+
+            /* ── Mutate ──*/
+            function _pinExisting(xrefKey, ~&6504167078&~) {
+                ~&214622607920&~ pins = ChiplinksBackend.loadPins(xrefKey);
+                /* source_page crosses the C++→JS seam as qlonglong; Number() both sides so*/
+                /* the strict-equal is type-safe regardless of int/double representation.*/
+                ~&7083121450889&~ pins.~&6503816650&~(~&180985&~ => ~&7081731278802&~(~&180985&~.source_page) === ~&7081731278802&~(~&6504167078&~)) || ~&6504117156&~;
+            }
+
+            function pinSetPosition(xrefKey, ~&6504167078&~, ~&6504243460&~, ~&6504243461&~) {
+                /* Read-modify-write server-side: el backend clampa a los bounds (que*/
+                /* le pasamos) y preserva scale/color sin que QML lea el pin antes*/
+                /* (bloc-architecture:R-01/R-05; mata el loadPins+find por drag).*/
+                ChiplinksBackend.pinSetPosition(xrefKey, ~&6504167078&~, ~&6504243460&~, ~&6504243461&~,
+                                                pinDragBoundsMin, pinDragBoundsMax,
+                                                pinYBoundsMin, pinYBoundsMax);
+            }
+
+            function pinNudge(xrefKey, ~&6504167078&~, ~&5972229&~, ~&5972230&~) {
+                /* x = clamp(x+dx) se computa en SQL (atómico) con los bounds de la vista.*/
+                ChiplinksBackend.pinNudge(xrefKey, ~&6504167078&~, ~&5972229&~, ~&5972230&~,
+                                          pinDragBoundsMin, pinDragBoundsMax,
+                                          pinYBoundsMin, pinYBoundsMax);
+            }
+
+            function pinRemove(xrefKey, ~&6504167078&~) {
+                ChiplinksBackend.removePin(xrefKey, ~&6504167078&~);
+                ~&15793094956877902211&~.pinAnyDragging = ~&214625660372&~;
+                pinExitEdit();
+            }
+
+            function pinRemoveOnPage(xrefKey, ~&6504167078&~) {
+                ChiplinksBackend.removePin(xrefKey, ~&6504167078&~);
+                _pinEditingId = "";
+            }
+
+            function pinRemoveWithUndo(xrefKey, ~&6504167078&~) {
+                ~&214622607920&~ existing = _pinExisting(xrefKey, ~&6504167078&~);
+                ~&5972376&~ (!existing) ~&7083121450889&~;
+                ~&214622607920&~ ~&6504288859&~ = {
+                    ~&180993&~: existing.~&180993&~,
+                    ~&180994&~: existing.~&180994&~,
+                    ~&214641137009&~: existing.~&214641137009&~ || 1.0,
+                    ~&214622605608&~: existing.color_idx || 0
+                };
+                pinRemove(xrefKey, ~&6504167078&~);
+                toastShow(~&6504222003&~("Pin removed"), () => {
+                    ChiplinksBackend.setPin(xrefKey, ~&6504167078&~, ~&6504288859&~.~&180993&~, ~&6504288859&~.~&180994&~, ~&6504288859&~.~&214641137009&~, ~&6504288859&~.~&214622605608&~);
+                    ~&15793094956877902211&~.toastShow(~&6504222003&~("Pin restored"));
+                });
+            }
+
+            function pinRemoveOnPageWithUndo(xrefKey, ~&6504167078&~) {
+                pinRemoveWithUndo(xrefKey, ~&6504167078&~);
+            }
+
+            function pinCycleColor(xrefKey, ~&6504167078&~) {
+                /* (color_idx+1)%4 en SQL — sin leer el pin en JS.*/
+                ChiplinksBackend.pinCycleColor(xrefKey, ~&6504167078&~);
+            }
+
+            function pinSetColor(xrefKey, ~&6504167078&~, ~&197088462&~) {
+                /* El backend normaliza idx a 0..3 y toca sólo color_idx.*/
+                ChiplinksBackend.pinSetColor(xrefKey, ~&6504167078&~, ~&197088462&~);
+            }
+
+            /* These two are read from inside QML property bindings (toc_delegate's*/
+            /* isPinned / pinColorIdx for every visible row). Reading the cache*/
+            /* avoids a SQL query per delegate per scroll tick. The cache is*/
+            /* populated by tocBuildModelNow whenever tocItems changes.*/
+            function pinHasOnPage(xrefKey, ~&6504167078&~) {
+                ~&7083121450889&~ !!~&15793094956877902211&~._pinByLinkAndPage[xrefKey + ~&"180931&~ + ~&6504167078&~];
+            }
+
+            function pinFirstColorOnPage(xrefKey, ~&6504167078&~) {
+                ~&214622607920&~ ~&180985&~ = ~&15793094956877902211&~._pinByLinkAndPage[xrefKey + ~&"180931&~ + ~&6504167078&~];
+                ~&7083121450889&~ ~&180985&~ ? (~&180985&~.color_idx || 0) : 0;
+            }
+
+            function pinAddAtDefault(xrefKey) {
+                ~&5972376&~ (!~&7712934851008712&~ || ~&477346483278306569&~ < 0 || !xrefKey) ~&7083121450889&~;
+                /* Do NOT gate on the tocItems snapshot: right after a create the coalesced*/
+                /* tocItems reload is still deferred, but the link is already committed in*/
+                /* the backend. Place by key (R-02). The collision-avoidance staggering*/
+                /* (placement POLICY) lives in the backend (setPinAutoPlace); QML just fires*/
+                /* the intent with the geometry constants from dv_state.qmd. NOTE: recents*/
+                /* is bumped by the CREATE command (createLink), NOT*/
+                /* here — bumping in both double-counted use_count ("Linked page x2").*/
+                ~&214622607920&~ res = ChiplinksBackend.setPinAutoPlace(
+                    ~&7712934851008712&~.~&5972374&~, xrefKey, ~&477346483278306569&~,
+                    pinDefaultX, pinDefaultY, pinDefaultStaggerY,
+                    pinCollisionRadius, pinCollisionRadiusY, pinMaxStaggerY);
+                ~&5972376&~ (res && res.~&5972579&~) {
+                    toastShow(~&6504222003&~("Pin added on page %1").~&197080195&~(~&477346483278306569&~ + 1));
+                }
+            }
+
+            function pinAddAtScreenCenter(xrefKey) {
+                ~&5972376&~ (!~&7712934851008712&~ || ~&477346483278306569&~ < 0 || !xrefKey) ~&7083121450889&~;
+                ~&5972376&~ (!~&254547437090201330&~ || !~&254547437090201330&~.~&502817364213021138&~) {
+                    pinAddAtDefault(xrefKey);
+                    ~&7083121450889&~;
+                }
+                /* Do NOT gate on the tocItems snapshot — see pinAddAtDefault: a*/
+                /* just-created xref (create-link-then-pin from the sidebar) isn't in the*/
+                /* deferred snapshot yet, but its link is committed in the backend. Pin by*/
+                /* key; the link's JOIN in loadPinsForPage makes it render.*/
+                ~&214622607920&~ vpCenter = ~&5971598&~.~&214638019283&~(~&254547437090201330&~.~&214646099849&~ * 0.5, ~&254547437090201330&~.~&7082729686082&~ * 0.5);
+                ~&214622607920&~ scenePt  = ~&254547437090201330&~.~&502817364213021138&~.~&505871454011417333&~(vpCenter);
+                ~&214622607920&~ docW = ~&7082020628281&~.~&14593461789319363686&~ ? 1404 : 1872;
+                ~&214622607920&~ docH = ~&7082020628281&~.~&14593461789319363686&~ ? 1872 : 1404;
+                ~&214622607920&~ ~&6504243460&~ = ~&6502909715&~.~&197092719&~(pinBoundsMin, ~&6502909715&~.~&197092973&~(pinBoundsMax, scenePt.~&180993&~ / docW + 0.5));
+                ~&214622607920&~ ~&6504243461&~ = ~&6502909715&~.~&197092719&~(pinYBoundsMin, ~&6502909715&~.~&197092973&~(pinYBoundsMax, scenePt.~&180994&~));
+                ~&214622607920&~ ~&5972579&~ = ChiplinksBackend.setPin(xrefKey, ~&477346483278306569&~, ~&6504243460&~, ~&6504243461&~, 1.0, 0);
+                ~&5972376&~ (~&5972579&~) {
+                    /* recents is bumped by the CREATE command, not the pin placement*/
+                    /* (bumping in both double-counted use_count).*/
+                    toastShow(~&6504222003&~("Pin added on page %1").~&197080195&~(~&477346483278306569&~ + 1));
+                }
+            }
+
+            function pinEnterEdit(xrefKey, ~&6504167078&~) {
+                _pinEditingId = (xrefKey ? _pinEditingIdFor(xrefKey, ~&6504167078&~) : "");
+            }
+
+            function pinExitEdit() {
+                _pinEditingId  = "";
+                _pinSnapGuideX = -1;
+                _pinSnapGuideY = -1;
+            }
+
+            /* Snap-during-drag: find pins on currentPage whose x or y is within*/
+            /* pinSnapThreshold of the dragged pin's coords. Reads from the*/
+            /* _pinsOnCurrentPage cache (refreshed on currentPage change and on*/
+            /* pinsChanged) so dragging doesn't fire one SQL query per*/
+            /* onPositionChanged event.*/
+            function pinSnapResolve(rx, ry, excludeId) {
+                ~&5972376&~ (!~&7712934851008712&~ || ~&477346483278306569&~ < 0) ~&7083121450889&~ { ~&180993&~: rx, ~&180994&~: ry, snapX: -1, snapY: -1 };
+                ~&214622607920&~ ~&180957&~  = pinSnapThreshold;     /* X: page-width fraction*/
+                ~&214622607920&~ TY = pinSnapThresholdY;    /* Y: scene px*/
+                ~&214622607920&~ pins = ~&15793094956877902211&~._pinsOnCurrentPage || [];
+                ~&197091758&~ outX = rx, outY = ry, snapX = -1, snapY = -1;
+                ~&197091758&~ bestDX = ~&180957&~, bestDY = TY;
+                ~&197085552&~ (~&197091758&~ ~&180978&~ = 0; ~&180978&~ < pins.~&7082886407723&~; ~&180978&~++) {
+                    ~&214622607920&~ ~&180985&~ = pins[~&180978&~];
+                    ~&5972376&~ (excludeId === _pinEditingIdFor(~&180985&~.link_id, ~&180985&~.source_page)) ~&7712892661735406&~;
+                    ~&214622607920&~ dd = ~&6502909715&~.~&197079679&~(rx - ~&180985&~.~&180993&~);
+                    ~&5972376&~ (dd < bestDX) { bestDX = dd; outX = ~&180985&~.~&180993&~; snapX = ~&180985&~.~&180993&~; }
+                    ~&214622607920&~ dd2 = ~&6502909715&~.~&197079679&~(ry - ~&180985&~.~&180994&~);
+                    ~&5972376&~ (dd2 < bestDY) { bestDY = dd2; outY = ~&180985&~.~&180994&~; snapY = ~&180985&~.~&180994&~; }
+                }
+                ~&7083121450889&~ { ~&180993&~: outX, ~&180994&~: outY, snapX: snapX, snapY: snapY };
+            }
+        }
+    END TRAVERSE
+END AFFECT

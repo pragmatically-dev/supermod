@@ -1,0 +1,15 @@
+AFFECT [[8850026134298937527]]
+    TRAVERSE [[8397993708429497603]]
+        LOCATE BEFORE ALL
+        INSERT {
+            property ~&6503679477&~ chiplinksDashboardVisible: ~&214625660372&~
+        }
+    END TRAVERSE
+
+    TRAVERSE [[8397993708429497603]] > [[233703109346403]]#[[7712727139026210]]
+        LOCATE BEFORE ALL
+        INSERT {
+            onOpenChiplinksDashboard: ~&6504254477&~.chiplinksDashboardVisible = ~&6504329801&~
+        }
+    END TRAVERSE
+END AFFECT

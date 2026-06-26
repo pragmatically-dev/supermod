@@ -1,0 +1,47 @@
+AFFECT [[1224665461898798997]]
+    TRAVERSE [[8397993708429497603]]
+        TRAVERSE [[6502786168]]#[[15549782143769420265]]
+            LOCATE BEFORE ALL INSERT {
+                ~&180995&~: ~&15793094956877902211&~.zChrome
+            }
+            TRAVERSE [[233704648923420]]
+                LOCATE BEFORE ALL INSERT {
+                    onTocShowView: ~&15793094956877902211&~.tocShowView()
+                    onTocAddEntry: (~&7083037950451&~) => {
+                        ~&15793094956877902211&~.tocShowRenameDialog(~&7083037950451&~);
+                    }
+                    onTocAddCurrentEntry: {
+                        ~&15793094956877902211&~.tocShowRenameDialog(~&15793094956877902211&~.~&3321486226208410902&~);
+                    }
+                    onBookmarkToggle: (~&7083037950451&~) => {
+                        ~&15793094956877902211&~.rmhToggleBookmark(~&7083037950451&~);
+                    }
+                    onTocStartCrossDocSelection: {
+                        ~&15793094956877902211&~.tocStartCrossDocSelection();
+                    }
+                    onLinkQuickStartCrossDoc: {
+                        ~&15793094956877902211&~.linkQuickStartCrossDoc();
+                    }
+                    onLinkQuickAddRecent: (~&7083120822410&~) => {
+                        ~&15793094956877902211&~.linkQuickAddRecent(~&7083120822410&~);
+                    }
+                    onBookmarksShowGrid: ~&15793094956877902211&~.bookmarksGridVisible = ~&6504329801&~
+                    onLinkShowRecentsGrid: {
+                        ~&15793094956877902211&~.linkLoadRecents();
+                        ~&15793094956877902211&~.linkRecentsGridVisible = ~&6504329801&~;
+                    }
+                    onBacklinksShowGrid: {
+                        ~&15793094956877902211&~.backlinksLoad();
+                        ~&15793094956877902211&~.backlinksGridVisible = ~&6504329801&~;
+                    }
+                    onCaptureCropRequested: ~&15793094956877902211&~.captureStartCrop()
+                    onCaptureInkRequested: ~&15793094956877902211&~.captureStartInk()
+
+                    ~&8399894313538586069&~: (~&6504167078&~) => ~&6504254477&~.~&7713405014271992&~(~&6504167078&~, ~&14175747548438644067&~.~&10593835380864769165&~.~&233701679679437&~)
+                    onOpenBookmarkRename: (~&7083037950451&~) => ~&6504254477&~.rmhShowRenameBookmarkDialog(~&7083037950451&~)
+                    onRmhRenameBookmark: (~&7083037950451&~, ~&6504095402&~) => ~&6504254477&~.rmhRenameBookmark(~&7083037950451&~, ~&6504095402&~)
+                }
+            END TRAVERSE
+        END TRAVERSE
+    END TRAVERSE
+END AFFECT
