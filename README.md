@@ -103,9 +103,19 @@ This produces `chiplinks-backend/chiplinks-backend.so` — the xovi extension th
 
 ---
 
+## 📦 Dependencies
+
+SuperMod is a `xovi` extension and relies on the xovi runtime plus two companion extensions on the device:
+
+- **[xovi](https://github.com/asivery/xovi)** — the extension loader/runtime that makes all of this possible.
+- **[qt-resource-rebuilder](https://github.com/asivery/rm-xovi-extensions)** — applies SuperMod's `qmldiff` QML patches to xochitl at load time.
+- **[framebuffer-spy](https://github.com/asivery/rm-xovi-extensions)** — **required** (declared `depends-on` in `chiplinks-backend.xovi`): gives the Capture feature access to the framebuffer. Without it, xovi **silently skips loading all of SuperMod** — so it is not optional.
+
+The simplest way to fetch the companion extensions is [vellum](https://github.com/vellum-dev/vellum-cli): `vellum add framebuffer-spy` pulls `xovi` + `qt-resource-rebuilder` + `framebuffer-spy` and drops them into `~/xovi/extensions.d/`.
+
 ## 📲 Installing (reMarkable 1 / 2)
 
-1. Install [xovi](https://github.com/asivery/rm-xovi-extensions) and the `qt-resource-rebuilder` extension on your device.
+1. Install `xovi`, `qt-resource-rebuilder` and `framebuffer-spy` (e.g. with `vellum add framebuffer-spy`).
 2. Copy `chiplinks-backend.so` into `~/xovi/extensions.d/`.
 3. Load xovi **manually** and launch xochitl under it.
 
