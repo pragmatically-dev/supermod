@@ -205,3 +205,14 @@ This project is an independent, unofficial modification. **reMarkable** is a tra
 ## ⚖️ Disclaimer
 
 Modifying your tablet is at your own risk. SuperMod loads manually through xovi and never touches the boot configuration, but you are responsible for what you run on your device. No warranty.
+
+---
+
+<div align="center">
+
+> *"Christ died for our sins according to the Scriptures, that he was buried, that he was raised on the third day according to the Scriptures."*
+> — 1 Corinthians 15:3-4
+
+**Soli Deo gloria.**
+
+</div>
