@@ -38,7 +38,7 @@ docker run --rm \
         make clean >/dev/null 2>&1 || true
         # Remove any prior .so FIRST: a failed make would otherwise leave a stale
         # .so on disk, and the [ -f ...so ] check below would report that old build
-        # as "OK" (this masked a real xovigen failure once — a420e0f's broken .xovi).
+        # as "OK" (this masked a real xovigen failure once: the a420e0f broken .xovi).
         rm -f chiplinks-backend.so
         make -j1
         echo "=== build artifacts ==="
