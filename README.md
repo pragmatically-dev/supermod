@@ -181,6 +181,14 @@ The simplest way to fetch the companion extensions is [vellum](https://github.co
 
 ---
 
+## 💛 Support (entirely optional)
+
+SuperMod is free and always will be. If it genuinely makes your reMarkable nicer and you feel like it, you can leave a **completely voluntary** tip — there's no paywall, no locked features, and nothing changes whether you donate or not.
+
+<p align="center"><a href="https://moonpay.hel.io/pay/6a3ee4b85e5985ebfb9d4be1"><b>☕ Donate (voluntary)</b></a></p>
+
+---
+
 ## 🙏 Credits & prior art
 
 SuperMod stands on the shoulders of the reMarkable hacking community:
