@@ -1,0 +1,57 @@
+name: ✨ Feature request
+description: Suggest a new feature or an improvement for SuperMod.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea to make SuperMod better? Tell us about it. The clearer the problem behind the request, the easier it is to design the right solution.
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Before you start
+      options:
+        - label: I searched existing issues and this hasn't already been requested.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do that's hard or impossible today?
+      placeholder: When planning my week I can't …
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or change you'd like.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of SuperMod?
+      options:
+        - Planner
+        - Chiplinks (links & backlinks)
+        - Graph view
+        - Table of Contents
+        - Pins & Bookmarks
+        - Post-it & Capture
+        - Notifications
+        - Data dashboard
+        - Toolbar / UI
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / examples
+      description: Sketches, screenshots, or how other apps do it — anything that helps picture it.
